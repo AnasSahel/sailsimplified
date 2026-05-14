@@ -52,6 +52,7 @@ const TYPE_TO_GROUP: Record<string, TransformGroupSlug> = {
   // Lookup
   accountAttribute: "lookup",
   identityAttribute: "lookup",
+  getReferenceIdentityAttribute: "lookup",
   reference: "lookup",
   lookup: "lookup",
   firstValid: "lookup",

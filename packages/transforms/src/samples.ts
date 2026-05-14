@@ -27,6 +27,7 @@ const SAMPLES: Record<string, string> = {
   reference: "input",
   accountAttribute: "(needs SailPoint account)",
   identityAttribute: "(needs SailPoint identity)",
+  getReferenceIdentityAttribute: "(needs referenced identity)",
   rule: "(rule code)",
   conditional: "input",
   dateCompare: "2026-05-08",

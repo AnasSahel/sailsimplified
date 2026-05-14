@@ -89,6 +89,56 @@ export const identityAttribute: TransformSpec = {
   },
 };
 
+/**
+ * Read an attribute from a *referenced* identity — typically the
+ * `manager`, `sponsor`, or `delegate` of the current identity rather than
+ * the current identity itself. SailPoint resolves the reference server-side
+ * by chasing the identity-ref attribute on the current identity; locally we
+ * have neither, so we route through `ctx.simulatedValues` keyed by
+ * `reference.<uid>.<attributeName>` (mirror of `account.<src>.<attr>` and
+ * `identity.<attr>`).
+ *
+ * Doc: https://developer.sailpoint.com/docs/extensibility/transforms/operations/get-reference-identity-attribute
+ */
+export const getReferenceIdentityAttribute: TransformSpec = {
+  type: "getReferenceIdentityAttribute",
+  group: "lookup",
+  description:
+    "Reads an attribute from a referenced identity (manager, sponsor, etc.). Needs simulation locally.",
+  directInputs: (attrs) => {
+    const uid = stringOrEmpty(attrs.uid);
+    const attributeName = stringOrEmpty(attrs.attributeName);
+    if (!uid || !attributeName) return [];
+    const id = `reference.${uid}.${attributeName}`;
+    return [
+      {
+        id,
+        label: `${uid}.${attributeName}`,
+        hint: "from referenced identity",
+      },
+    ];
+  },
+  evaluate: (attrs, _input, ctx) => {
+    const uid = stringOrEmpty(attrs.uid);
+    const attributeName = stringOrEmpty(attrs.attributeName);
+    if (!uid || !attributeName) {
+      throw new UnsupportedTransformTypeError(
+        "getReferenceIdentityAttribute",
+        "Missing `uid` or `attributeName` — can't resolve which referenced identity's attribute to read.",
+      );
+    }
+    const id = `reference.${uid}.${attributeName}`;
+    const value = ctx.simulatedValues[id];
+    if (value === undefined) {
+      throw new UnsupportedTransformTypeError(
+        "getReferenceIdentityAttribute",
+        `Reads "${attributeName}" from referenced identity "${uid}". Provide a simulated value (key: ${id}).`,
+      );
+    }
+    return value;
+  },
+};
+
 function stringOrEmpty(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
@@ -96,4 +146,5 @@ function stringOrEmpty(v: unknown): string {
 export const CONTEXT_SPECS: TransformSpec[] = [
   accountAttribute,
   identityAttribute,
+  getReferenceIdentityAttribute,
 ];

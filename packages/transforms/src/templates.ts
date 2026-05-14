@@ -61,6 +61,7 @@ const TEMPLATES: Record<string, TransformSkeleton["attributes"]> = {
   // Context
   accountAttribute: { sourceName: "", attributeName: "" },
   identityAttribute: { name: "" },
+  getReferenceIdentityAttribute: { uid: "manager", attributeName: "" },
 
   // Conditional / date math — testable locally
   conditional: {
