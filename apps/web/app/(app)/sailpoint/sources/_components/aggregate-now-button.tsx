@@ -53,13 +53,38 @@ export function AggregateNowButton({
   id,
   name,
   isRunning,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   id: string;
   name: string;
   isRunning: boolean;
+  /**
+   * Optional controlled open state. When provided, the dialog visibility
+   * is driven by the parent (used by `<SourceDetailActions>` to share the
+   * same dialog instance between the desktop inline button and the mobile
+   * `⋯` overflow menu item).
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /**
+   * Hide the default inline trigger button. Useful when the parent owns
+   * the trigger (e.g. a DropdownMenuItem in the mobile overflow menu) and
+   * just wants this component to provide the dialog body + behaviour.
+   */
+  hideTrigger?: boolean;
 }) {
   const router = useRouter();
-  const [open, setOpen] = React.useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      if (onOpenChange) onOpenChange(next);
+      if (controlledOpen === undefined) setUncontrolledOpen(next);
+    },
+    [controlledOpen, onOpenChange],
+  );
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<
@@ -101,6 +126,10 @@ export function AggregateNowButton({
   }
 
   if (isRunning) {
+    // No dialog needed in the running state — the button is purely
+    // informational. When `hideTrigger` is set, render nothing so the
+    // parent (mobile overflow menu) can render its own disabled item.
+    if (hideTrigger) return null;
     return (
       <TooltipProvider delayDuration={150}>
         <Tooltip>
@@ -129,12 +158,14 @@ export function AggregateNowButton({
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <RefreshCw className="h-3.5 w-3.5" />
-          Aggregate now
-        </Button>
-      </AlertDialogTrigger>
+      {hideTrigger ? null : (
+        <AlertDialogTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" />
+            Aggregate now
+          </Button>
+        </AlertDialogTrigger>
+      )}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Run aggregation on this source?</AlertDialogTitle>

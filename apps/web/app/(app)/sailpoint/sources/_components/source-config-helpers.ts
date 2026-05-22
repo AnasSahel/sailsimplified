@@ -116,3 +116,108 @@ export function parseTimeZoneFromConnectorAttributes(
 ): string | null {
   return pickString(attrs, ["timezone", "timeZone", "tz", "scheduleTimezone"]);
 }
+
+// ============================================================
+// Per-connector classification + raw <dl> masking heuristics
+// ============================================================
+
+/**
+ * Connector families we render a typed view for. Anything else falls
+ * through to the raw `<dl>` view in `<ConfigurationCard>`.
+ *
+ * Detection probes `connector` (internal id, lowercase-kebab) first, then
+ * `connectorName` / `type` as a fallback — ISC isn't consistent about
+ * which field carries the canonical identifier across `OpenConnector`,
+ * `DelimitedFile`, web-service, and vendor-SaaS sources.
+ */
+export type ConnectorFamily =
+  | "onelogin"
+  | "active-directory"
+  | "delimited-file"
+  | "unknown";
+
+export function classifyConnector(input: {
+  connector?: string | null;
+  connectorName?: string | null;
+  type?: string | null;
+}): ConnectorFamily {
+  const haystack = [input.connector, input.connectorName, input.type]
+    .filter((s): s is string => typeof s === "string" && s.length > 0)
+    .map((s) => s.toLowerCase())
+    .join(" ");
+  if (!haystack) return "unknown";
+  if (haystack.includes("onelogin")) return "onelogin";
+  if (
+    haystack.includes("active-directory") ||
+    haystack.includes("active directory") ||
+    haystack.includes("activedirectory")
+  ) {
+    return "active-directory";
+  }
+  if (
+    haystack.includes("delimitedfile") ||
+    haystack.includes("delimited file") ||
+    haystack.includes("delimited-file") ||
+    haystack.includes("csv")
+  ) {
+    return "delimited-file";
+  }
+  return "unknown";
+}
+
+/**
+ * Heuristic for "this value should be masked in the raw fallback view".
+ *
+ * Matches on the *key* only — we never want to keyword-scan values
+ * because user-provided field labels can be arbitrary and false-positives
+ * on values would silently hide useful config. Generic substrings only
+ * — never tenant or client identifiers.
+ */
+const SENSITIVE_KEY_PATTERNS: RegExp[] = [
+  /secret/i,
+  /password/i,
+  /passwd/i,
+  /\btoken\b/i,
+  /\bapi[-_]?key\b/i,
+  /private[-_]?key/i,
+  /credential/i,
+  /\bauth\b/i, // catches "authToken", "authHeader", "authValue"
+  /encrypted/i,
+];
+
+export function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEY_PATTERNS.some((re) => re.test(key));
+}
+
+/**
+ * Mask a value for display. Always returns a non-empty string — empty /
+ * null values still surface as `(empty)` so the operator can tell the
+ * difference between "secret set but masked" and "field never filled".
+ */
+export function maskValue(value: unknown): string {
+  if (value === null || value === undefined) return "(empty)";
+  if (typeof value === "string" && value.length === 0) return "(empty)";
+  return "••••••••";
+}
+
+/**
+ * Render any connectorAttribute value for the raw `<dl>` fallback. Strings
+ * pass through; arrays/objects get a JSON serialization; booleans and
+ * numbers stringify. Long strings are returned as-is — `<KvList>` handles
+ * wrap/truncate at the row level.
+ */
+export function formatRawAttributeValue(value: unknown): string {
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "string") {
+    return value.length > 0 ? value : "—";
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  // Arrays + objects — best-effort compact JSON.
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}

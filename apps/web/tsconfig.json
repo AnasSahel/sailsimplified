@@ -1,6 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // Sibling packages (e.g. `@simplified-identity/transforms`) ship TS
+    // source and use `.ts` extensions on internal imports so Node's
+    // `--experimental-strip-types` test runner can resolve them. The web
+    // typechecker walks those files transitively, so it needs to allow
+    // the same import shape. Only valid because `noEmit: true` is on.
+    "allowImportingTsExtensions": true,
     "plugins": [
       {
         "name": "next"

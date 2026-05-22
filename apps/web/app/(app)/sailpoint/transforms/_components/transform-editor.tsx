@@ -46,6 +46,7 @@ import {
 } from "@simplified-identity/transforms";
 import { sampleFor } from "@simplified-identity/transforms";
 
+import { ExecutionTrace } from "./execution-trace";
 import { JsonPanel } from "./json-panel";
 import { RecipeTree } from "./recipe-tree";
 import { RealIdentityPicker } from "./test-tab-real-identity";
@@ -879,153 +880,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ── Execution trace (timeline) ──────────────────────────────────────
-//
-// Replaces the previous indented StepsPanel + StepCard. The trace is
-// now rendered as a vertical timeline: numbered circle (01, 02, …) +
-// connecting line on the left, type pill + [input] → [output] boxes on
-// the right. Failed steps get a rose tint and an inline error message.
-//
-// Depth from the trace is preserved as a tiny "d{N}" badge on the
-// circle when > 0 — informative without distorting the linear layout.
-// See ADR 2026-05-11-transform-editor-ux-overhaul.md.
-
-function ExecutionTrace({ traces }: { traces: ReadonlyArray<Trace> }) {
-  return (
-    <section>
-      <div className="flex items-baseline justify-between pb-2">
-        <SectionLabel>Execution trace</SectionLabel>
-        <span className="text-[11px] tabular-nums text-muted-foreground">
-          {traces.length} {traces.length === 1 ? "step" : "steps"}
-        </span>
-      </div>
-      <ol className="space-y-2">
-        {traces.map((step, i) => (
-          <TraceStep
-            key={i}
-            index={i}
-            step={step}
-            isLast={i === traces.length - 1}
-          />
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function TraceStep({
-  index,
-  step,
-  isLast,
-}: {
-  index: number;
-  step: Trace;
-  isLast: boolean;
-}) {
-  const isError = step.error !== undefined;
-  // Error takes precedence over warning — a step that threw isn't
-  // "advisory", it's broken. Warning only paints the card when the step
-  // succeeded but produced a surprising shape (split with no match, etc).
-  const isWarning = !isError && step.warning !== undefined;
-  const label = String(index + 1).padStart(2, "0");
-  return (
-    <li className="flex gap-3">
-      {/* Left: numbered circle + connector line */}
-      <div className="relative flex w-7 shrink-0 flex-col items-center">
-        <div
-          className={cn(
-            "z-10 flex h-7 w-7 items-center justify-center rounded-full border font-mono text-[10px] font-semibold",
-            isError
-              ? "border-rose-300 bg-rose-600 text-white"
-              : isWarning
-                ? "border-amber-300 bg-amber-500 text-white"
-                : "border-zinc-200 bg-zinc-900 text-white dark:border-zinc-700 dark:bg-zinc-50 dark:text-zinc-900",
-          )}
-          title={step.depth > 0 ? `depth ${step.depth}` : undefined}
-        >
-          {label}
-        </div>
-        {!isLast && (
-          <div
-            aria-hidden
-            className="-mt-1 w-px flex-1 bg-zinc-200 dark:bg-zinc-800"
-          />
-        )}
-      </div>
-
-      {/* Right: pill + io boxes + optional error/warning */}
-      <div
-        className={cn(
-          "min-w-0 flex-1 rounded-md border bg-card p-2.5 pb-3",
-          isError
-            ? "border-rose-200 bg-rose-50/60 dark:border-rose-900/40 dark:bg-rose-950/20"
-            : isWarning
-              ? "border-amber-200 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20"
-              : "border-border",
-        )}
-      >
-        <div className="flex items-center justify-between gap-2 pb-1.5">
-          <TypePill type={step.type} />
-          {step.depth > 0 && (
-            <span className="font-mono text-[10px] text-muted-foreground">
-              d{step.depth}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <IOBox value={step.input} label="input" />
-          <span aria-hidden className="shrink-0 text-muted-foreground">
-            →
-          </span>
-          <IOBox
-            value={step.output}
-            label="output"
-            error={isError}
-          />
-        </div>
-        {isError && step.error && (
-          <p className="pt-1.5 font-mono text-[11px] text-rose-700 dark:text-rose-300">
-            {step.error}
-          </p>
-        )}
-        {isWarning && step.warning && (
-          <p className="flex items-center gap-1.5 pt-1.5 font-mono text-[11px] text-amber-700 dark:text-amber-300">
-            <AlertTriangle aria-hidden className="h-3 w-3 shrink-0" />
-            <span>{step.warning}</span>
-          </p>
-        )}
-      </div>
-    </li>
-  );
-}
-
-function IOBox({
-  value,
-  label,
-  error,
-}: {
-  value: string;
-  label: string;
-  error?: boolean;
-}) {
-  const isEmpty = value === "" || error;
-  return (
-    <div
-      className={cn(
-        "min-w-0 flex-1 rounded border px-2 py-1 font-mono text-[11px]",
-        isEmpty
-          ? "border-dashed border-zinc-300 bg-transparent text-zinc-400 dark:border-zinc-700"
-          : "border-zinc-200 bg-zinc-50 text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100",
-      )}
-      title={`${label}: ${value}`}
-    >
-      <span className="block truncate">
-        {error ? "ø" : value === "" ? "ø" : value}
-      </span>
-    </div>
-  );
-}
-
 // ── Final box ───────────────────────────────────────────────────────
 //
 // Replaces the previous Output section. Dedicated final-result panel
@@ -1087,7 +941,7 @@ function QuickSamples() {
   return (
     <section>
       <SectionLabel>Quick samples</SectionLabel>
-      <div className="rounded-md border border-dashed border-zinc-200 bg-zinc-50/50 px-3 py-4 text-center text-[11px] text-muted-foreground dark:border-zinc-800 dark:bg-zinc-900/30">
+      <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-muted-foreground dark:border-slate-800 dark:bg-slate-900/30">
         No quick samples configured yet.
       </div>
     </section>

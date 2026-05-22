@@ -55,6 +55,15 @@ interface SheetContentProps
    * header) to avoid duplicate buttons.
    */
   hideClose?: boolean;
+  /**
+   * When `false`, skip the dark backdrop overlay and keep the underlying
+   * page interactive — the sheet renders as a side panel coexisting with
+   * the list/page behind it (Linear/Vercel/Notion workspace pattern).
+   * Click outside the sheet does NOT close it; the consumer is expected
+   * to provide explicit close affordances (X header, Esc, etc.).
+   * Defaults to `true` to preserve modal behavior for existing callers.
+   */
+  modal?: boolean;
 }
 
 function SheetContent({
@@ -62,13 +71,32 @@ function SheetContent({
   className,
   children,
   hideClose = false,
+  modal = true,
+  onPointerDownOutside,
+  onInteractOutside,
   ...props
 }: SheetContentProps) {
   return (
     <SheetPortal>
-      <SheetOverlay />
+      {modal && <SheetOverlay />}
       <SheetPrimitive.Content
         className={cn(sheetVariants({ side }), className)}
+        onPointerDownOutside={
+          modal
+            ? onPointerDownOutside
+            : (e) => {
+                e.preventDefault();
+                onPointerDownOutside?.(e);
+              }
+        }
+        onInteractOutside={
+          modal
+            ? onInteractOutside
+            : (e) => {
+                e.preventDefault();
+                onInteractOutside?.(e);
+              }
+        }
         {...props}
       >
         {children}

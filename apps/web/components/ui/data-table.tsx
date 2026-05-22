@@ -238,7 +238,14 @@ export function DataTable<T>({
       ) : null}
       <div
         className={cn(
-          "overflow-hidden rounded-lg border bg-card",
+          // `overflow-x-auto` lets the row-actions kebab stay reachable
+          // when column content is wider than the viewport (e.g. long
+          // connector names, ID-bearing sub-lines). The horizontal
+          // scrollbar is preferable to clipping the action cell at the
+          // right edge. `rounded-lg` is preserved via `border` +
+          // `overflow-x-auto` (no `overflow-hidden`) — corners stay
+          // clean because the table-row borders draw inside the box.
+          "overflow-x-auto rounded-lg border bg-card",
           mobileLayout === "cards" && "hidden sm:block",
         )}
       >
