@@ -835,12 +835,18 @@ function SourceTab({ script }: { script: string }) {
 // Signature tab
 // ────────────────────────────────────────────────────────────────────────────
 
+type SignatureParam = NonNullable<
+  NonNullable<RuleRow["signature"]>["input"]
+>[number];
+
 function SignatureTab({
   signature,
 }: {
   signature: RuleRow["signature"];
 }) {
-  const hasContent = !!signature && (!!signature.input?.length || !!signature.output);
+  const input = signature?.input ?? [];
+  const output = signature?.output ?? null;
+  const hasContent = input.length > 0 || !!output;
   if (!hasContent) {
     return (
       <p className="si-caption text-muted-foreground/70">
@@ -849,42 +855,50 @@ function SignatureTab({
     );
   }
   return (
-    <div className="space-y-4">
-      {signature?.input && signature.input.length > 0 ? (
-        <div className="space-y-1.5">
-          <div className="si-micro uppercase tracking-wider text-muted-foreground">
-            Input
-          </div>
-          <ul className="space-y-1">
-            {signature.input.map((p, i) => (
-              <li key={i} className="flex items-baseline gap-2 si-caption">
-                <span className="font-mono text-foreground">{p.name}</span>
-                {p.type ? (
-                  <span className="font-mono text-muted-foreground/70">{p.type}</span>
-                ) : null}
-                {p.description ? (
-                  <span className="text-muted-foreground">— {p.description}</span>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {signature?.output ? (
-        <div className="space-y-1.5">
-          <div className="si-micro uppercase tracking-wider text-muted-foreground">
-            Output
-          </div>
-          <div className="flex items-baseline gap-2 si-caption">
-            <span className="font-mono text-foreground">{signature.output.name}</span>
-            {signature.output.type ? (
-              <span className="font-mono text-muted-foreground/70">
-                {signature.output.type}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+    <div className="space-y-5">
+      {input.length > 0 ? <SignatureSection label="Input" params={input} /> : null}
+      {output ? <SignatureSection label="Output" params={[output]} /> : null}
+    </div>
+  );
+}
+
+/**
+ * Aligned name → (type · description) grid for a signature's params. The
+ * name column is `max-content` so every description starts at the same x —
+ * same alignment grammar as the Overview PROPERTIES grid (the inline-flex
+ * layout it replaced let descriptions float at varying offsets per row).
+ */
+function SignatureSection({
+  label,
+  params,
+}: {
+  label: string;
+  params: ReadonlyArray<SignatureParam>;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="si-micro uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-2">
+        {params.map((p, i) => (
+          <React.Fragment key={i}>
+            <dt className="si-caption font-mono text-foreground">{p.name}</dt>
+            <dd className="si-caption min-w-0 text-muted-foreground">
+              {p.type ? (
+                <span className="font-mono text-muted-foreground/70">{p.type}</span>
+              ) : null}
+              {p.type && p.description ? (
+                <span className="text-muted-foreground/40"> · </span>
+              ) : null}
+              {p.description ? <span>{p.description}</span> : null}
+              {!p.type && !p.description ? (
+                <span className="text-muted-foreground/50">—</span>
+              ) : null}
+            </dd>
+          </React.Fragment>
+        ))}
+      </dl>
     </div>
   );
 }
