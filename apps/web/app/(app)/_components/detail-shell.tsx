@@ -33,7 +33,7 @@ export function DetailShell({
   return (
     <div
       className={cn(
-        "w-full px-6 py-5",
+        "w-full min-w-0 px-6 py-5",
         className,
       )}
     >

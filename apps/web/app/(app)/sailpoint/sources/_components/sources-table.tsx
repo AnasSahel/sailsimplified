@@ -133,14 +133,16 @@ export function SourcesTable({ data }: { data: SourceRow[] }) {
           }
           const kind = row.original.connectorClass ?? row.original.type;
           return (
-            <span className="si-caption">
-              <span className="si-body">{label}</span>
+            <div className="flex min-w-0 flex-col leading-tight">
+              <span className="truncate si-body" title={label}>
+                {label}
+              </span>
               {kind && (
-                <span className="ml-1 text-muted-foreground">
-                  ({prettyConnectorKind(kind)})
+                <span className="si-caption text-muted-foreground">
+                  {prettyConnectorKind(kind)}
                 </span>
               )}
-            </span>
+            </div>
           );
         },
       },

@@ -3,12 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Check, Minus } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import type { UsageEntry } from "@simplified-identity/transforms";
 
 import { TypeIcon, TypePill } from "../../../_components/type-pill";
+import { IssuesBadge, type IssuesBadgeCounts } from "./issues-badge";
+import { OriginPill } from "./origin-pill";
 import { RowActions } from "./row-actions";
+import { UsagesCell } from "./usages-cell";
 
 export type GridTransform = {
   id: string;
@@ -21,11 +23,19 @@ export type GridTransform = {
 export function TransformsGrid({
   transforms,
   tenantTransformNames,
+  usagesByName,
+  issuesByTransformId,
 }: {
   transforms: GridTransform[];
   /** Live list of all transform names in the tenant — fed to row-level
    * Duplicate so the dialog can pre-compute a unique default name. */
   tenantTransformNames: ReadonlyArray<string>;
+  /** Per-transform usage breakdown (#315) — fed into the Usages cell tooltip.
+   * Optional so callers without the roll-up still type-check. */
+  usagesByName?: ReadonlyMap<string, ReadonlyArray<UsageEntry>>;
+  /** Per-transform lint counts (#310 PR 4/4) — drives the inline issues
+   * badge next to the name. Keyed by `transform.id`, omitted when zero. */
+  issuesByTransformId?: ReadonlyMap<string, IssuesBadgeCounts>;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -65,6 +75,8 @@ export function TransformsGrid({
               <span className="truncate font-mono text-xs font-medium">
                 {t.name}
               </span>
+              {/* Visual order: name → issues badge (per ADR / issue #310 PR 4/4). */}
+              <IssuesBadge counts={issuesByTransformId?.get(t.id)} />
             </Link>
             <RowActions
               id={t.id}
@@ -77,35 +89,13 @@ export function TransformsGrid({
           <div className="flex items-center justify-between gap-2">
             <TypePill type={t.type} />
             <div className="flex items-center gap-2">
-              {t.usages !== undefined && (
-                <span
-                  title={`${t.usages} usage${t.usages === 1 ? "" : "s"}`}
-                  className={cn(
-                    "font-mono text-[11px] tabular-nums",
-                    t.usages === 0
-                      ? "text-muted-foreground/55"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {t.usages} use{t.usages === 1 ? "" : "s"}
-                </span>
-              )}
-              <span
-                aria-label={t.internal ? "Built-in" : "Custom"}
-                title={t.internal ? "Built-in" : "Custom"}
-                className={cn(
-                  "inline-flex h-5 w-5 items-center justify-center rounded",
-                  t.internal
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-muted-foreground/50",
-                )}
-              >
-                {t.internal ? (
-                  <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
-                ) : (
-                  <Minus className="h-3.5 w-3.5" />
-                )}
-              </span>
+              <UsagesCell
+                usages={t.usages}
+                internal={t.internal}
+                transformId={t.id}
+                usagesEntries={usagesByName?.get(t.name)}
+              />
+              <OriginPill internal={t.internal} />
             </div>
           </div>
         </div>

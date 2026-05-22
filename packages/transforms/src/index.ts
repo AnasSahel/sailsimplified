@@ -1,4 +1,5 @@
 export * from "./groups";
+export * from "./grouping";
 export * from "./types";
 export * from "./registry";
 export * from "./evaluator";
@@ -9,3 +10,4 @@ export * from "./build-graph";
 export * from "./usages";
 export * from "./samples";
 export * from "./auto-samples";
+export * from "./lint";

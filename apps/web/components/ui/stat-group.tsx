@@ -95,7 +95,15 @@ export function StatGroup({
   );
 }
 
-function StatCell({
+/**
+ * Single-cell renderer split out so callers that want to mix server-
+ * rendered server cells with a client-rendered island in the same row
+ * (e.g. the Transforms KPI strip with its lint-fed Issues card, #310)
+ * can render the same chrome without going through `<StatGroup>`. The
+ * strip wrapper (`sm:divide-x`, etc.) lives at the call site in that
+ * case so all cells share the same parent for divider alignment.
+ */
+export function StatCell({
   item,
   layout,
 }: {
@@ -172,8 +180,11 @@ function StatCell({
           : // Inline: below `sm`, cell is a self-contained card (rounded
             // border + bg + padding). At `sm:` the parent supplies the
             // border + dividers, so we drop the per-cell card chrome and
-            // grow to fill the row.
-            "flex flex-col gap-1 rounded-lg border bg-card p-4 sm:flex-1 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-5 sm:py-4",
+            // grow to fill the row. `min-w-0` lets the flex-1 cells
+            // shrink below their natural content width — without it the
+            // row overflows horizontally when the natural sum of widths
+            // exceeds the viewport (caught with 5 cells + long labels).
+            "flex min-w-0 flex-col gap-1 rounded-lg border bg-card p-4 sm:flex-1 sm:rounded-none sm:border-0 sm:bg-transparent sm:px-5 sm:py-4",
         layout === "grid" &&
           tone === "warning" &&
           "border-amber-200 bg-amber-50/60 dark:border-amber-900/50 dark:bg-amber-950/20",
@@ -226,7 +237,7 @@ function StatCell({
         // Inline cells share the row via `flex-1` on their inner body at
         // `sm:`+. Below `sm` the parent is a grid, so the wrapper must
         // stay a plain block; from `sm:` it grows in the flex row.
-        layout === "inline" && "rounded-lg sm:flex sm:flex-1 sm:rounded-none",
+        layout === "inline" && "rounded-lg sm:flex sm:min-w-0 sm:flex-1 sm:rounded-none",
       )}
     >
       {body}

@@ -3,10 +3,9 @@ import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
 
 import { DetailHeader } from "../../../_components/detail-shell";
-import { AggregateNowButton } from "./aggregate-now-button";
 import { HealthPill } from "./health-pill";
 import { SourceAvatar } from "./source-avatar";
-import { StubAction } from "./stub-action";
+import { SourceDetailActions } from "./source-detail-actions";
 
 type SourceForHeader = {
   id: string;
@@ -88,7 +87,7 @@ function SubtitleLine({
   segments.push(
     <span
       key="id"
-      className="font-mono text-muted-foreground/80"
+      className="font-mono text-muted-foreground/80 break-all"
       title="Source ID"
     >
       {id}
@@ -121,7 +120,9 @@ function SubtitleLine({
  *  - title row: name + Authoritative badge + connector kind badge + Health pill
  *  - subtitle: connector · version · owner link · mono ID
  *  - actions toolbar: Aggregate now (#143) + Test connection / Edit (still
- *    stubbed until #182 / a forthcoming Edit issue land)
+ *    stubbed until #182 / a forthcoming Edit issue land). Below 720px the
+ *    three actions collapse into a `⋯` overflow menu — see
+ *    `<SourceDetailActions>` for the responsive split.
  *
  * `isAggregating` flips the Aggregate-now button to a disabled+tooltip
  * state. It's best-effort: ISC doesn't expose a dedicated per-source
@@ -166,15 +167,11 @@ export function SourceDetailHeader({
         </>
       }
       actions={
-        <>
-          <AggregateNowButton
-            id={source.id}
-            name={source.name}
-            isRunning={isAggregating}
-          />
-          <StubAction>Test connection</StubAction>
-          <StubAction>Edit</StubAction>
-        </>
+        <SourceDetailActions
+          sourceId={source.id}
+          sourceName={source.name}
+          isAggregating={isAggregating}
+        />
       }
     />
   );

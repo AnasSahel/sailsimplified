@@ -10,4 +10,10 @@ export type SelectableTransform = {
    * (e.g. identity-profiles endpoint failed) — distinct from `0`.
    */
   usages?: number;
+  /**
+   * ISO timestamp returned by `/v2025/transforms` for the last edit. May
+   * be absent on built-in transforms or older list payloads — the table
+   * renders an em-dash and skips the stale check in that case.
+   */
+  modified?: string;
 };
