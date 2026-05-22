@@ -23,10 +23,19 @@ export {
 export {
   listConnectorRules,
   getConnectorRule,
+  createConnectorRule,
+  updateConnectorRule,
+  deleteConnectorRule,
+  validateConnectorRule,
   type ConnectorRule,
   type ConnectorRuleSignature,
   type ConnectorRuleSignatureParam,
   type ConnectorRuleSourceCode,
+  type ConnectorRulePayload,
+  type CreateOrUpdateRuleResult,
+  type DeleteRuleResult,
+  type ValidateRuleResult,
+  type RuleValidationDetail,
 } from "./rules-api";
 
 export {
