@@ -12,6 +12,8 @@ import {
   getCorrelationConfig as pureGetCorrelationConfig,
   getSchemaMappings as pureGetSchemaMappings,
   getSource as pureGet,
+  patchSource as purePatch,
+  type JsonPatchOp,
   getSourceAccounts as pureGetAccounts,
   getSourceAggregationStatus as pureGetAggStatus,
   getSourceSchemas as pureGetSchemas,
@@ -97,6 +99,16 @@ export async function getSource(userId: string, id: string) {
   const opts = await getClientOptsForUser(userId);
   if (!opts) return NOT_CONNECTED;
   return pureGet(opts, id);
+}
+
+export async function patchSource(
+  userId: string,
+  id: string,
+  ops: JsonPatchOp[],
+) {
+  const opts = await getClientOptsForUser(userId);
+  if (!opts) return NOT_CONNECTED;
+  return purePatch(opts, id, ops);
 }
 
 export async function getSourceSchemas(userId: string, id: string) {

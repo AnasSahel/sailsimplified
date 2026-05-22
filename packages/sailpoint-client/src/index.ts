@@ -23,10 +23,19 @@ export {
 export {
   listConnectorRules,
   getConnectorRule,
+  createConnectorRule,
+  updateConnectorRule,
+  deleteConnectorRule,
+  validateConnectorRule,
   type ConnectorRule,
   type ConnectorRuleSignature,
   type ConnectorRuleSignatureParam,
   type ConnectorRuleSourceCode,
+  type ConnectorRulePayload,
+  type CreateOrUpdateRuleResult,
+  type DeleteRuleResult,
+  type ValidateRuleResult,
+  type RuleValidationDetail,
 } from "./rules-api";
 
 export {
@@ -68,6 +77,7 @@ export {
   getSourceAccounts,
   getSourceAggregationStatus,
   triggerAggregation,
+  patchSource,
   countAccounts,
   countEntitlements,
   countAccountEntitlements,
@@ -91,6 +101,8 @@ export {
   type AggregationType,
   type TriggerAggregationParams,
   type TriggerAggregationResult,
+  type JsonPatchOp,
+  type PatchSourceResult,
   type AccountActionItemResult,
   type BulkAccountActionResult,
   type SchemaMappings,

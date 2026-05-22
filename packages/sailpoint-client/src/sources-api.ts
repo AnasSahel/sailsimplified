@@ -165,6 +165,23 @@ export type TriggerAggregationResult =
   | { ok: false; status: number; message: string };
 
 /**
+ * A JSON-Patch operation for `patchSource`. Structurally identical to the
+ * `JsonPatchOp` the `@simplified-identity/rules` attachment helpers emit —
+ * the web layer passes those straight here (packages don't import each
+ * other; same convention as `ConnectorRule`).
+ */
+export type JsonPatchOp = {
+  op: "add" | "replace" | "remove" | "move" | "copy" | "test";
+  path: string;
+  value?: unknown;
+  from?: string;
+};
+
+export type PatchSourceResult =
+  | { ok: true; data: SourceDetail }
+  | { ok: false; status: number; message: string };
+
+/**
  * Result of a per-account bulk action (recorrelate / disable / refresh).
  *
  * ISC v2025 only exposes per-account mutation endpoints on `/v2025/accounts`
@@ -434,6 +451,34 @@ export async function triggerAggregation(
     return { ok: false, status: m.status, message: m.message };
   }
   return { ok: true, taskId: extractTaskId(result.data) };
+}
+
+/**
+ * `PATCH /v2025/sources/{id}` with a JSON-Patch body
+ * (`application/json-patch+json`). The generic source mutation primitive —
+ * used by connector-rule attach/detach (#354), which builds the ops via
+ * `@simplified-identity/rules`. Returns the updated source on success.
+ *
+ * Caution: a `remove` at a mis-derived path is destructive (it can drop the
+ * wrong field on a live source). Callers must derive the path from a known
+ * reference (the usages walker), not guess it.
+ */
+export async function patchSource(
+  opts: SailpointClientOptions,
+  id: string,
+  ops: JsonPatchOp[],
+): Promise<PatchSourceResult> {
+  const result = await sailpointFetch<SourceDetail>(
+    opts,
+    `/v2025/sources/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json-patch+json" },
+      body: JSON.stringify(ops),
+    },
+  );
+  if (!result.ok) return mapError(result.error);
+  return { ok: true, data: result.data };
 }
 
 /**
