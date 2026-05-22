@@ -4,6 +4,19 @@ import * as React from "react";
 
 import { highlightBeanShell } from "./beanshell-highlight";
 
+/** Nearest ancestor that actually scrolls vertically (the drawer body). */
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+  let node = el.parentElement;
+  while (node) {
+    const overflowY = getComputedStyle(node).overflowY;
+    if ((overflowY === "auto" || overflowY === "scroll") && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
+}
+
 /**
  * Editable BeanShell editor (#352) — the v1 highlight primitive made
  * editable, per the epic #350 decision (no new editor framework). A
@@ -25,19 +38,54 @@ export function RuleCodeEditor({
   onChange,
   hasErrors = false,
   ariaLabel = "Rule source code",
+  initialCaretLine,
 }: {
   value: string;
   onChange: (next: string) => void;
   /** Paint a red ring when server-side validation failed. */
   hasErrors?: boolean;
   ariaLabel?: string;
+  /** 1-based line to focus + place the caret on at mount (fix-in-editor, #363). */
+  initialCaretLine?: number;
 }) {
+  const taRef = React.useRef<HTMLTextAreaElement>(null);
+
   // Trailing newline keeps the highlighted layer at least as tall as the
   // textarea when the buffer ends on a blank line (so the caret has room).
   const html = React.useMemo(
     () => highlightBeanShell(value) + "\n",
     [value],
   );
+
+  // On open via "fix in editor", drop the caret at the start of the target
+  // line and scroll it into view. Runs once on mount — `initialCaretLine` is
+  // fixed for the editor's lifetime (the drawer remounts it per fix).
+  //
+  // The textarea grows with its content (overflow hidden); the *drawer body*
+  // is the scroll container. So we can't scroll the textarea — we walk up to
+  // the nearest scrollable ancestor and scroll it via bounding rects (robust
+  // regardless of which element is the offsetParent), in a rAF so the layout
+  // has settled after mount.
+  React.useEffect(() => {
+    if (!initialCaretLine) return;
+    const ta = taRef.current;
+    if (!ta) return;
+    const offset =
+      value.split("\n").slice(0, initialCaretLine - 1).join("\n").length +
+      (initialCaretLine > 1 ? 1 : 0);
+    ta.focus();
+    ta.setSelectionRange(offset, offset);
+
+    requestAnimationFrame(() => {
+      const scroller = findScrollParent(ta);
+      if (!scroller) return;
+      const lineHeight = parseFloat(getComputedStyle(ta).lineHeight) || 18;
+      const taTop = ta.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+      const caretTop = scroller.scrollTop + taTop + (initialCaretLine - 1) * lineHeight;
+      scroller.scrollTop = Math.max(0, caretTop - scroller.clientHeight / 2);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Tab") {
@@ -70,6 +118,7 @@ export function RuleCodeEditor({
         dangerouslySetInnerHTML={{ __html: html }}
       />
       <textarea
+        ref={taRef}
         value={value}
         onChange={(e) => onChange(e.currentTarget.value)}
         onKeyDown={onKeyDown}

@@ -86,24 +86,31 @@ function bodyRangeAfterHeader(
   return { bodyStart: first.start, bodyEnd: code[code.length - 1].end, braceless: true };
 }
 
+/** True when code token `idx` is an identifier directly followed by `(` — a call. */
+function isCallAt(code: Token[], idx: number): boolean {
+  const next = code[idx + 1];
+  return code[idx]?.kind === "identifier" && next?.kind === "punct" && next.value === "(";
+}
+
+/** Resolve the `.`-separated receiver chain + `new` flag for a call at `idx`. */
+function calleeAt(code: Token[], idx: number): { receiver: string; isConstructor: boolean } {
+  const chain: string[] = [];
+  let j = idx - 1;
+  while (j >= 1 && code[j].kind === "punct" && code[j].value === "." && code[j - 1].kind === "identifier") {
+    chain.unshift(code[j - 1].value);
+    j -= 2;
+  }
+  const isConstructor = j >= 0 && code[j].kind === "keyword" && code[j].value === "new";
+  return { receiver: chain.join("."), isConstructor };
+}
+
 /** Method/constructor invocations: identifier (or `new Type`) immediately before `(`. */
 function extractApiCalls(code: Token[]): ApiCall[] {
   const calls: ApiCall[] = [];
   for (let i = 0; i < code.length; i++) {
+    if (!isCallAt(code, i)) continue;
     const t = code[i];
-    const next = code[i + 1];
-    if (t.kind !== "identifier" || !next || next.kind !== "punct" || next.value !== "(") {
-      continue;
-    }
-    // Walk back over a `.`-separated receiver chain.
-    const chain: string[] = [];
-    let j = i - 1;
-    while (j >= 1 && code[j].kind === "punct" && code[j].value === "." && code[j - 1].kind === "identifier") {
-      chain.unshift(code[j - 1].value);
-      j -= 2;
-    }
-    const isConstructor = j >= 0 && code[j].kind === "keyword" && code[j].value === "new";
-    const receiver = chain.join(".");
+    const { receiver, isConstructor } = calleeAt(code, i);
     calls.push({
       method: t.value,
       receiver: isConstructor ? "" : receiver,
@@ -180,7 +187,7 @@ function extractLiterals(code: Token[]): StringLiteral[] {
  * `name == null` / `name != null` guard between origin and use, flag it once.
  */
 function extractNullDerefs(code: Token[]): NullDeref[] {
-  type Origin = { line: number; offset: number };
+  type Origin = { line: number; offset: number; call: string };
   const nullableOrigin = new Map<string, Origin>();
   const guarded = new Set<string>();
   const out: NullDeref[] = [];
@@ -195,16 +202,18 @@ function extractNullDerefs(code: Token[]): NullDeref[] {
       const name = code[i - 1].value;
       // RHS up to `;` contains a *method* call? (identifier `(`, not `new X(`).
       // A constructor never returns null, so it does not make the LHS nullable.
-      let hasCall = false;
+      // Capture the call's qualified name so the detector can apply a
+      // nullable-call policy (only ISC lookups truly return null on a miss).
+      let originCall = "";
       for (let j = i + 1; j < code.length && code[j].value !== ";"; j++) {
-        if (code[j].kind === "identifier" && code[j + 1]?.kind === "punct" && code[j + 1]?.value === "("
-            && code[j - 1]?.value !== "new") {
-          hasCall = true;
+        if (isCallAt(code, j) && code[j - 1]?.value !== "new") {
+          const { receiver } = calleeAt(code, j);
+          originCall = receiver ? `${receiver}.${code[j].value}` : code[j].value;
           break;
         }
       }
-      if (hasCall) {
-        nullableOrigin.set(name, { line: code[i - 1].line, offset: t.start });
+      if (originCall) {
+        nullableOrigin.set(name, { line: code[i - 1].line, offset: t.start, call: originCall });
         guarded.delete(name);
         flagged.delete(name);
       }
@@ -236,7 +245,13 @@ function extractNullDerefs(code: Token[]): NullDeref[] {
         && code[i + 1]?.kind === "punct" && code[i + 1]?.value === ".") {
       const origin = nullableOrigin.get(t.value)!;
       if (t.start > origin.offset) {
-        out.push({ variable: t.value, line: t.line, start: t.start, originLine: origin.line });
+        out.push({
+          variable: t.value,
+          line: t.line,
+          start: t.start,
+          originLine: origin.line,
+          originCall: origin.call,
+        });
         flagged.add(t.value);
       }
     }

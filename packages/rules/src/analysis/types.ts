@@ -70,6 +70,14 @@ export type NullDeref = {
   start: number;
   /** Line where `variable` was assigned from a call. */
   originLine: number;
+  /**
+   * Best-effort qualified name of the call the value came from
+   * (e.g. `context.getObjectByName`, `Instant.now`). The null-safety detector
+   * uses this to fire only for calls that actually return null (ISC lookups) —
+   * keeping the analysis general while the nullable-call *policy* lives in the
+   * detector, not here.
+   */
+  originCall: string;
 };
 
 /** A declared local and how many times it is referenced after its declaration (0 ⇒ unused). */

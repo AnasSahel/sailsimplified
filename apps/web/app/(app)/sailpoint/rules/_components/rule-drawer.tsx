@@ -25,6 +25,11 @@ import { RuleEditor, type RuleEditorMode } from "./rule-editor";
 import { DeleteRuleDialog } from "./delete-rule-dialog";
 import { DuplicateRuleDialog } from "./duplicate-rule-dialog";
 import { AttachedSourcesPanel } from "./attached-sources-panel";
+import {
+  RuleIssuesBanner,
+  issuesSummary,
+  summarizeSource,
+} from "./rule-issues-banner";
 import type { RuleRow } from "./types";
 
 /**
@@ -72,6 +77,8 @@ export function RuleDrawer({
   const [editorDirty, setEditorDirty] = React.useState(false);
   const [duplicateOpen, setDuplicateOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  // Line to drop the editor caret on when entering edit via "fix in editor".
+  const [fixLine, setFixLine] = React.useState<number | null>(null);
 
   const open = isNew || rule !== null;
   const mode: "consult" | "edit" | "new" = isNew
@@ -84,7 +91,14 @@ export function RuleDrawer({
   React.useEffect(() => {
     setEditing(false);
     setEditorDirty(false);
+    setFixLine(null);
   }, [selectedId, isNew]);
+
+  // Fix-in-editor: enter edit mode with the caret on the offending line.
+  const fixInEditor = React.useCallback((line: number) => {
+    setFixLine(line);
+    setEditing(true);
+  }, []);
 
   React.useEffect(() => {
     const root = document.documentElement;
@@ -167,6 +181,7 @@ export function RuleDrawer({
             script: rule.sourceCode?.script ?? "",
             version: rule.sourceCode?.version,
             modified: rule.modified,
+            initialCaretLine: fixLine ?? undefined,
           }
         : null;
 
@@ -251,6 +266,7 @@ export function RuleDrawer({
           usagesByRuleId={usagesByRuleId}
           usagesAvailable={usagesAvailable}
           sources={sources}
+          onFixInEditor={fixInEditor}
         />
       ) : null}
 
@@ -283,15 +299,21 @@ function ConsultBody({
   usagesByRuleId,
   usagesAvailable,
   sources,
+  onFixInEditor,
 }: {
   rule: RuleRow;
   usagesByRuleId: ReadonlyMap<string, ReadonlyArray<RuleUsageEntry>>;
   usagesAvailable: boolean;
   sources: ReadonlyArray<{ id: string; name: string }>;
+  onFixInEditor: (line: number) => void;
 }) {
   const attachments = usagesByRuleId.get(rule.id) ?? [];
   const isUnattached = usagesAvailable && attachments.length === 0;
   const script = rule.sourceCode?.script ?? "";
+  const issueSummary = script ? summarizeSource(rule.id, script) : null;
+  const summaryLabel = issueSummary
+    ? issuesSummary(issueSummary.errorCount, issueSummary.warningCount)
+    : "";
 
   return (
     <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
@@ -304,6 +326,22 @@ function ConsultBody({
             below, or delete it.
           </div>
         </div>
+      ) : null}
+
+      {script ? (
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="si-micro uppercase tracking-wider text-muted-foreground">
+              Source issues
+            </h3>
+            {summaryLabel ? (
+              <span className="si-micro font-mono text-muted-foreground/80">
+                {summaryLabel}
+              </span>
+            ) : null}
+          </div>
+          <RuleIssuesBanner ruleId={rule.id} script={script} onFix={onFixInEditor} />
+        </section>
       ) : null}
 
       {rule.description ? (

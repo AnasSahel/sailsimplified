@@ -55,6 +55,12 @@ describe("null-safety (correctness)", () => {
   it("does not flag a guarded deref", () => {
     assert.equal(byDetector(GUARDED_DEREF, "null-safety").length, 0);
   });
+
+  it("does not flag a deref of a non-ISC (JDK) call result", () => {
+    // Instant.now()/now.plus(...) never return null — flagging them is noise.
+    const script = `Instant now = Instant.now();\nInstant exp = now.plus(60, ChronoUnit.SECONDS);\nlong e = exp.getEpochSecond();`;
+    assert.equal(byDetector(script, "null-safety").length, 0);
+  });
 });
 
 describe("api-in-loop (perf)", () => {

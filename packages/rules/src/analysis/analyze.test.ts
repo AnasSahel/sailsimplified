@@ -93,10 +93,17 @@ describe("analyzeSource — literals", () => {
 });
 
 describe("analyzeSource — null derefs", () => {
-  it("flags an unguarded deref of a call result", () => {
+  it("flags an unguarded deref of a call result + records the originating call", () => {
     const a = analyzeSource(UNGUARDED_DEREF);
     assert.equal(a.nullDerefs.length, 1);
     assert.equal(a.nullDerefs[0].variable, "id");
+    assert.equal(a.nullDerefs[0].originCall, "context.getObjectByName");
+  });
+
+  it("records non-ISC call origins too (analysis stays general; policy is the detector's)", () => {
+    const a = analyzeSource(`Instant now = Instant.now();\nlong e = now.getEpochSecond();`);
+    assert.equal(a.nullDerefs.length, 1);
+    assert.equal(a.nullDerefs[0].originCall, "Instant.now");
   });
 
   it("does not flag a guarded deref", () => {
