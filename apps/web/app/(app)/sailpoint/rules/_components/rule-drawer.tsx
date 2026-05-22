@@ -493,26 +493,22 @@ function ConsultBody({
             <span className="truncate">{rule.name}</span>
           </span>
         }
-        titleBadge={
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Pill tone="neutral" shape="square">
-              Connector
-            </Pill>
-            <Pill tone="accent" shape="square">
-              {catalog.displayLabel}
-            </Pill>
-            <AttachedBadge
-              usagesAvailable={usagesAvailable}
-              count={attachedCount}
-            />
-          </div>
-        }
-        meta={[{ label: ruleGroupFor(rule.type).label }]}
         onClose={onClose}
         fullscreen={fullscreen}
         onFullscreenToggle={onFullscreenToggle}
       />
-      <div className="px-5">
+      {/* Pills on their own wrapping row — keeping them out of the title row
+          lets the (often long) rule name use the full drawer width. */}
+      <div className="flex flex-wrap items-center gap-1.5 px-5 pt-3">
+        <Pill tone="neutral" shape="square">
+          Connector
+        </Pill>
+        <Pill tone="accent" shape="square">
+          {catalog.displayLabel}
+        </Pill>
+        <AttachedBadge usagesAvailable={usagesAvailable} count={attachedCount} />
+      </div>
+      <div className="px-5 pt-3">
         <Tabs
           size="sm"
           value={tab}
