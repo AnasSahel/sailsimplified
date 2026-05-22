@@ -28,6 +28,7 @@
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
+    "@simplified-identity/rules": "workspace:*",
     "@simplified-identity/sailpoint-client": "workspace:*",
     "@simplified-identity/transforms": "workspace:*",
     "@tanstack/react-table": "^8.21.3",
