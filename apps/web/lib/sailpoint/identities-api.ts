@@ -11,8 +11,10 @@ import {
   processIdentities as pureProcessBulk,
   processIdentity as pureProcess,
   searchIdentities as pureSearch,
+  searchPublicIdentities as pureSearchPublic,
   type ListIdentitiesParams,
   type SearchIdentitiesParams,
+  type SearchPublicIdentitiesParams,
 } from "@simplified-identity/sailpoint-client";
 
 import { getClientOptsForUser } from "./client";
@@ -32,7 +34,9 @@ export type {
   ListIdentitiesParams,
   ListResult,
   ProcessIdentityResult,
+  PublicIdentitySummary,
   SearchIdentitiesParams,
+  SearchPublicIdentitiesParams,
 } from "@simplified-identity/sailpoint-client";
 
 const NOT_CONNECTED = {
@@ -58,6 +62,15 @@ export async function searchIdentities(
   const opts = await getClientOptsForUser(userId);
   if (!opts) return NOT_CONNECTED;
   return pureSearch(opts, params);
+}
+
+export async function searchPublicIdentities(
+  userId: string,
+  params: SearchPublicIdentitiesParams,
+) {
+  const opts = await getClientOptsForUser(userId);
+  if (!opts) return NOT_CONNECTED;
+  return pureSearchPublic(opts, params);
 }
 
 export async function countIdentities(

@@ -30,6 +30,7 @@ export {
   listIdentityProfiles,
   getIdentityProfileLifecycleStates,
   searchIdentities,
+  searchPublicIdentities,
   countIdentities,
   buildIdentitySearchQuery,
   type IdentitySummary,
@@ -44,7 +45,9 @@ export {
   type IdentityAccessItemType,
   type IdentitySearchHit,
   type ListIdentitiesParams,
+  type PublicIdentitySummary,
   type SearchIdentitiesParams,
+  type SearchPublicIdentitiesParams,
   type ListResult,
   type ProcessIdentityResult,
 } from "./identities-api";

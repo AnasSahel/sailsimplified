@@ -5,7 +5,6 @@ import {
   Bookmark,
   Check,
   ChevronDown,
-  IdCard,
   Loader2,
   Play,
   Sparkles,
@@ -39,6 +38,7 @@ import {
   saveTransformFixture,
   type Fixture,
 } from "./fixture-actions";
+import { RealIdentityPicker } from "./test-tab-real-identity";
 import type { SelectableTransform } from "./types";
 
 /**
@@ -233,6 +233,11 @@ export function TestTab({
         />
       </section>
 
+      <RealIdentityPicker
+        onSimulatedValuesChange={setSimulatedValues}
+        onReset={() => setResult(null)}
+      />
+
       {requiredInputs.length > 0 && (
         <GroupedSimulatedContext
           inputs={requiredInputs}
@@ -256,8 +261,6 @@ export function TestTab({
       </section>
 
       {traces.length > 0 && <ExecutionTrace traces={traces} />}
-
-      <ComingSoonRealIdentity />
     </div>
   );
 }
@@ -701,28 +704,6 @@ function OutputPanel({ result }: { result: EvalResult | null }) {
       <p className="font-medium">Error</p>
       <p className="mt-1 font-mono">{result.error}</p>
     </div>
-  );
-}
-
-function ComingSoonRealIdentity() {
-  return (
-    <section className="rounded-md border border-dashed border-violet-300 bg-violet-50/60 px-3 py-3 dark:border-violet-900/40 dark:bg-violet-950/20">
-      <div className="flex items-start gap-2">
-        <IdCard className="mt-0.5 h-4 w-4 shrink-0 text-violet-700 dark:text-violet-300" />
-        <div className="flex-1 text-xs">
-          <p className="font-medium text-violet-900 dark:text-violet-100">
-            Test against a real identity
-            <span className="ml-2 rounded bg-violet-200/70 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-violet-900 dark:bg-violet-900/40 dark:text-violet-200">
-              Coming soon
-            </span>
-          </p>
-          <p className="mt-1 text-violet-800/80 dark:text-violet-200/70">
-            Pick an identity from the tenant and we&apos;ll auto-fill the
-            simulated context from its attributes and connected accounts.
-          </p>
-        </div>
-      </div>
-    </section>
   );
 }
 

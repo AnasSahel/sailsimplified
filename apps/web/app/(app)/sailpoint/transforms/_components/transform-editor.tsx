@@ -56,6 +56,7 @@ import {
 import { ExecutionTrace } from "./execution-trace";
 import { JsonPanel } from "./json-panel";
 import { RecipeTree } from "./recipe-tree";
+import { RealIdentityPicker } from "./test-tab-real-identity";
 import {
   createTransformAction,
   updateTransformAction,
@@ -889,6 +890,14 @@ function TestPanel({
           spellCheck={false}
         />
       </section>
+
+      <RealIdentityPicker
+        onSimulatedValuesChange={setSimulatedValues}
+        onReset={() => {
+          setResult(null);
+          setTraces([]);
+        }}
+      />
 
       {requiredInputs.length > 0 && (
         <section>
