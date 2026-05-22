@@ -900,31 +900,13 @@ function TestPanel({
       />
 
       {requiredInputs.length > 0 && (
-        <section>
-          <SectionLabel>Simulated context</SectionLabel>
-          <div className="space-y-1.5">
-            {requiredInputs.map((req) => (
-              <div key={req.id} className="flex items-center gap-1.5">
-                <span className="font-mono text-[10px] text-muted-foreground">
-                  {req.label}
-                </span>
-                <input
-                  type="text"
-                  value={simulatedValues[req.id] ?? ""}
-                  onChange={(e) => {
-                    // Capture before the setState callback — React's
-                    // SyntheticEvent reuses `currentTarget` and nulls it
-                    // out by the time the updater runs.
-                    const v = e.currentTarget.value;
-                    setSimulatedValues((prev) => ({ ...prev, [req.id]: v }));
-                  }}
-                  placeholder={req.hint ?? ""}
-                  className="h-7 flex-1 rounded border border-input bg-card px-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-              </div>
-            ))}
-          </div>
-        </section>
+        <RequiredInputsSections
+          inputs={requiredInputs}
+          values={simulatedValues}
+          onSet={(id, v) =>
+            setSimulatedValues((prev) => ({ ...prev, [id]: v }))
+          }
+        />
       )}
 
       <div className="flex items-center gap-2">
@@ -1044,6 +1026,90 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <h3 className="pb-1.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
       {children}
     </h3>
+  );
+}
+
+// ── Required inputs sections (split by prefix) ──────────────────────
+//
+// Splits required inputs into two cards: the existing "Simulated context"
+// (identity / account values) and a new "Reference identity" section for
+// `getReferenceIdentityAttribute` (`reference.<uid>.<attr>` keys). See
+// ADR 2026-05-14-transform-reference-identity-attr.md.
+
+function RequiredInputsSections({
+  inputs,
+  values,
+  onSet,
+}: {
+  inputs: ReadonlyArray<RequiredSimulationInput>;
+  values: Readonly<Record<string, string>>;
+  onSet: (id: string, value: string) => void;
+}) {
+  const reference: RequiredSimulationInput[] = [];
+  const context: RequiredSimulationInput[] = [];
+  for (const i of inputs) {
+    if (i.id.startsWith("reference.")) reference.push(i);
+    else context.push(i);
+  }
+  return (
+    <>
+      {context.length > 0 && (
+        <InputsSection
+          label="Simulated context"
+          inputs={context}
+          values={values}
+          onSet={onSet}
+        />
+      )}
+      {reference.length > 0 && (
+        <InputsSection
+          label="Reference identity"
+          inputs={reference}
+          values={values}
+          onSet={onSet}
+        />
+      )}
+    </>
+  );
+}
+
+function InputsSection({
+  label,
+  inputs,
+  values,
+  onSet,
+}: {
+  label: string;
+  inputs: ReadonlyArray<RequiredSimulationInput>;
+  values: Readonly<Record<string, string>>;
+  onSet: (id: string, value: string) => void;
+}) {
+  return (
+    <section>
+      <SectionLabel>{label}</SectionLabel>
+      <div className="space-y-1.5">
+        {inputs.map((req) => (
+          <div key={req.id} className="flex items-center gap-1.5">
+            <span className="font-mono text-[10px] text-muted-foreground">
+              {req.label}
+            </span>
+            <input
+              type="text"
+              value={values[req.id] ?? ""}
+              onChange={(e) => {
+                // Capture before the setState callback — React's
+                // SyntheticEvent reuses `currentTarget` and nulls it
+                // out by the time the updater runs.
+                const v = e.currentTarget.value;
+                onSet(req.id, v);
+              }}
+              placeholder={req.hint ?? ""}
+              className="h-7 flex-1 rounded border border-input bg-card px-2 font-mono text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

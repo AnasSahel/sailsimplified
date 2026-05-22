@@ -171,6 +171,31 @@ export const CATALOG: ReadonlyArray<CatalogEntry> = [
     ],
   },
   {
+    type: "getReferenceIdentityAttribute",
+    group: "lookup",
+    description:
+      "Read an attribute from a referenced identity (e.g. the current identity's manager).",
+    leaf: true,
+    attrs: [
+      {
+        k: "uid",
+        label: "Reference type",
+        t: "text",
+        required: true,
+        placeholder: "manager",
+        hint: "e.g. manager, sponsor, or an identity username",
+      },
+      {
+        k: "attributeName",
+        label: "Attribute name",
+        t: "text",
+        required: true,
+        placeholder: "email",
+        hint: "Attribute to read on the referenced identity",
+      },
+    ],
+  },
+  {
     type: "static",
     group: "static",
     description:

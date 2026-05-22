@@ -528,8 +528,14 @@ type Group = {
 /**
  * Split `RequiredSimulationInput[]` by their `id` prefix:
  *   - `account.<source>.<attr>` → group "Account · <source>"
+ *   - `reference.<uid>.<attr>`  → group "Reference · <uid>"
  *   - `identity.<attr>`         → group "Identity"
  *   - anything else             → group "Other"
+ *
+ * Reference inputs come from `getReferenceIdentityAttribute` — an attribute
+ * read off a *different* identity (manager, sponsor, …). They get their own
+ * header so `manager.email` is never confused with `identity.email`. See ADR
+ * `2026-05-14-transform-reference-identity-attr.md`.
  *
  * Within each group, original order is preserved (specs declare inputs
  * in evaluation order, which is the most natural for the user to read).
@@ -540,12 +546,17 @@ function groupInputs(
   const acc = new Map<string, RequiredSimulationInput[]>();
   const meta = new Map<string, { label: string; hint?: string }>();
   for (const i of inputs) {
-    const m = /^account\.([^.]+)\./.exec(i.id);
+    const account = /^account\.([^.]+)\./.exec(i.id);
+    const reference = /^reference\.([^.]+)\./.exec(i.id);
     let key: string;
-    if (m) {
-      key = `account.${m[1]}`;
+    if (account) {
+      key = `account.${account[1]}`;
       if (!meta.has(key))
-        meta.set(key, { label: "Account", hint: m[1] });
+        meta.set(key, { label: "Account", hint: account[1] });
+    } else if (reference) {
+      key = `reference.${reference[1]}`;
+      if (!meta.has(key))
+        meta.set(key, { label: "Reference", hint: reference[1] });
     } else if (i.id.startsWith("identity.")) {
       key = "identity";
       if (!meta.has(key)) meta.set(key, { label: "Identity" });
@@ -562,12 +573,14 @@ function groupInputs(
     const m = meta.get(key)!;
     groups.push({ label: m.label, hint: m.hint, inputs: arr });
   }
-  // Order: identity first, then accounts (alphabetical), then other.
+  // Order: identity, then references, then accounts, then other.
+  // Within the reference / account ranks, sort alphabetically by hint
+  // (uid / source) so the list is stable across renders.
+  const rank = (label: string): number =>
+    label === "Identity" ? 0 : label === "Reference" ? 1 : label === "Other" ? 3 : 2;
   groups.sort((a, b) => {
-    if (a.label === "Identity" && b.label !== "Identity") return -1;
-    if (b.label === "Identity" && a.label !== "Identity") return 1;
-    if (a.label === "Other" && b.label !== "Other") return 1;
-    if (b.label === "Other" && a.label !== "Other") return -1;
+    const byRank = rank(a.label) - rank(b.label);
+    if (byRank !== 0) return byRank;
     return (a.hint ?? "").localeCompare(b.hint ?? "");
   });
   return groups;
