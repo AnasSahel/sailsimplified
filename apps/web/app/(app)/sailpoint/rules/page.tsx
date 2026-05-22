@@ -17,6 +17,7 @@ import {
 
 import { PageShell } from "../../_components/page-shell";
 import { UnresolvedReferencesNote } from "./_components/unresolved-references-note";
+import { NewRuleButton } from "./_components/new-rule-button";
 import { RuleDrawer } from "./_components/rule-drawer";
 import { RulesKpiStrip } from "./_components/rules-kpi-strip";
 import { RulesTable } from "./_components/rules-table";
@@ -226,6 +227,7 @@ export default async function RulesPage({
       <PageShell
         title="Rules"
         description="Connector rules attached to sources on the connected SailPoint tenant."
+        actions={<NewRuleButton />}
       >
         <div className="space-y-4">
           <RulesKpiStrip kpis={kpis} />
