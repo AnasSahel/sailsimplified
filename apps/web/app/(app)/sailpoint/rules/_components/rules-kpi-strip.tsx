@@ -1,4 +1,4 @@
-import { CheckCircle2, EyeOff, LayoutGrid, List } from "lucide-react";
+import { AlertTriangle, CheckCircle2, EyeOff, LayoutGrid, List } from "lucide-react";
 
 import { StatCell, type StatItem } from "@/components/ui/stat-group";
 
@@ -23,6 +23,10 @@ export type RulesKpis = {
    * fan-out failed). The Attached / Unattached cards then render "—".
    */
   usagesAvailable: boolean;
+  /** Source-lint findings across the visible set (#364). */
+  issueErrorCount: number;
+  issueWarningCount: number;
+  rulesWithIssues: number;
 };
 
 export function RulesKpiStrip({ kpis }: { kpis: RulesKpis }) {
@@ -68,6 +72,19 @@ export function RulesKpiStrip({ kpis }: { kpis: RulesKpis }) {
         kpis.usagesAvailable && kpis.unattachedCount > 0
           ? "/sailpoint/rules?attached=0"
           : undefined,
+    },
+    {
+      label: "Issues",
+      tooltip:
+        "Source-hygiene findings across the visible rules (deprecated ISC calls, null-safety, API-in-loop, dead code, hardcoded secrets). Errors block; warnings inform.",
+      value: (kpis.issueErrorCount + kpis.issueWarningCount).toLocaleString(),
+      tone: kpis.issueErrorCount > 0 ? "danger" : undefined,
+      icon: <AlertTriangle className="h-4 w-4" />,
+      sub:
+        kpis.issueErrorCount + kpis.issueWarningCount > 0
+          ? `${kpis.issueErrorCount.toLocaleString()} errors · ${kpis.issueWarningCount.toLocaleString()} warnings`
+          : "No source issues",
+      href: kpis.rulesWithIssues > 0 ? "/sailpoint/rules?issues=1" : undefined,
     },
   ];
 

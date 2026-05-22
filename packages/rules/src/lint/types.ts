@@ -22,14 +22,29 @@ import type { RuleRecord } from "../types";
 export type Severity = "error" | "warning";
 
 /**
+ * Where in a rule's `sourceCode` a finding sits. Present only on source
+ * detectors (#361/#362) — structural detectors operate on the rule as a whole
+ * and leave it absent. Drives the fix-in-editor deep link (#363).
+ */
+export type IssueLocation = {
+  /** 1-based line in the rule's `sourceCode.script`. */
+  line: number;
+  /** Trimmed source line for inline display, when available. */
+  snippet?: string;
+};
+
+/**
  * One finding emitted against a single connector rule. Stable shape across
- * every detector so the UI renders a uniform list.
+ * every detector so the UI renders a uniform list. `location` is optional —
+ * structural detectors omit it; source detectors set it so a finding can
+ * deep-link into the editor at the offending line.
  */
 export type Issue = {
   ruleId: string;
   detectorId: string;
   severity: Severity;
   message: string;
+  location?: IssueLocation;
 };
 
 /**

@@ -53,6 +53,8 @@ export type RuleEditorMode =
       script: string;
       version?: string | null;
       modified?: string | null;
+      /** 1-based line to place the caret on at open (fix-in-editor, #363). */
+      initialCaretLine?: number;
     };
 
 export function RuleEditor({
@@ -256,6 +258,7 @@ export function RuleEditor({
             value={script}
             onChange={setScript}
             hasErrors={validation.kind === "error"}
+            initialCaretLine={mode.kind === "edit" ? mode.initialCaretLine : undefined}
           />
           {validation.kind === "error" ? (
             <ul className="space-y-1 rounded-md border border-rose-200 bg-rose-50/60 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/20">
