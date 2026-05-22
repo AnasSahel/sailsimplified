@@ -64,6 +64,9 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@simplified-identity/rules':
+        specifier: workspace:*
+        version: link:../../packages/rules
       '@simplified-identity/sailpoint-client':
         specifier: workspace:*
         version: link:../../packages/sailpoint-client
@@ -143,6 +146,15 @@ importers:
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/rules:
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.39
       typescript:
         specifier: ^5
         version: 5.9.3

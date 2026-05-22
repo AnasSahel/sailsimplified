@@ -21,6 +21,15 @@ export {
 } from "./transforms-api";
 
 export {
+  listConnectorRules,
+  getConnectorRule,
+  type ConnectorRule,
+  type ConnectorRuleSignature,
+  type ConnectorRuleSignatureParam,
+  type ConnectorRuleSourceCode,
+} from "./rules-api";
+
+export {
   listIdentities,
   getIdentity,
   getIdentityAccounts,
