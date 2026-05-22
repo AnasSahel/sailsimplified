@@ -104,6 +104,24 @@ The SailPoint ISC access token is a JWT but does **not** carry the user's email 
 
 If `/oauth/userinfo` is unavailable on a given tenant, the app falls back to `/v2025/identities/me` and an alias-based search on `/v2025/identities` — both of which **do** require an explicit scope (`sp:scopes:default` is the typical choice) to be enabled on the OAuth client. For the standard sign-in flow you don't need that.
 
+## Authoring transforms — Recipe view
+
+Transform authoring at `/sailpoint/transforms/new` and `/sailpoint/transforms/<id>/edit` defaults to a visual **Recipe view**: a vertical stack of cards, one per transform step, with nested sub-pipelines (concat/firstValid values) indented under a left guide. Each card surfaces the right form control per attribute (`text`, `bool`, `number`, `select`, `select-source`, `select-transform`, `kv`), with rarely-tweaked attributes folded behind an **Advanced** disclosure.
+
+The CodeMirror Raw JSON editor stays one click away via the **Edit raw JSON** toggle for power users, debugging, and any transform type that isn't covered by the local catalogue.
+
+| Layer | Path |
+|---|---|
+| Catalogue (per-type schema: `attrs[]`, `advancedAttrs[]`, `leaf`, `aggregator`) | `packages/transforms/src/catalog.ts` |
+| Recipe model (typed tree + bidirectional JSON ↔ Recipe serializer + path-based immutable mutators) | `packages/transforms/src/recipe.ts` |
+| UI — recursive node, step card, transform-list group, transform-map group | `apps/web/app/(app)/sailpoint/transforms/_components/recipe-node.tsx` |
+| UI — per-attr-type form controls | `apps/web/app/(app)/sailpoint/transforms/_components/recipe-attr.tsx` |
+| Editor + toggle (Recipe is default) | `apps/web/app/(app)/sailpoint/transforms/_components/transform-editor.tsx` |
+
+The same catalogue feeds both the visual builder and the local evaluator/registry — a single source of truth for every supported type. If a type is missing from the catalogue, the card falls back to a "switch to Raw JSON" notice rather than rendering a broken form.
+
+Design notes and the original tradeoff analysis live in `vault/Projects/Simplified Identity/2026-05-08-transform-recipe-view.md` (and the 2026-05-14 follow-up).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
