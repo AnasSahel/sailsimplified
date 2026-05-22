@@ -4,42 +4,15 @@ Public web app, will deploy to Dokploy when there's something to ship. Full stat
 
 Pitch : **Simplify SailPoint admin and user experience.** Replaces Keel (abandoned 2026-05-05). Originally bootstrapped under the name "SailSimplified" — renamed to "Simplified Identity" 2026-05-05; the old name is preserved in historical commits/issues but should not appear in new content.
 
-## Decisions — mandatory ADR
+## Decisions — pas d'ADR par défaut
 
-**Every non-trivial technical decision gets an ADR in `vault/Projects/Simplified Identity/` before implementation.**
+**Depuis le 2026-05-20, ce projet n'écrit plus d'ADR par défaut.** La pratique ADR est remplacée par le shape gate two-tier : `~/brain/.claude/rules/pre-build-shape-gate.md`. Router toute tâche de code par cette règle.
 
-- Path: `vault/Projects/Simplified Identity/YYYY-MM-DD-<slug>.md`
-- Frontmatter: `type: analysis`, `project: simplified-identity`, `date: YYYY-MM-DD`, `status: active` → `done` at merge, `tags`
-- Structure (mirror existing Vulnex ADRs as templates — e.g. `vault/Projects/Vulnex/2026-04-16-page-structure-decision.md`):
-  - `> Projet : [[Simplified Identity]]`
-  - `## TL;DR` — the decision + its price in 2–4 lines
-  - `## Principes` — the guiding rules
-  - `## Options évaluées` — table with For / Against / Verdict
-  - `## Recommandation détaillée` — what exactly
-  - `## Plan` — implementation steps
-  - `## Gaps & revisites` — what's deferred and why
-  - `## Suivi` — issues to open, docs to update
+- **Tier 1 (vrai choix ouvert)** → la sortie est *la conversation* avec Anas, pas un document. Un fichier seulement si un lecteur aval identifié en a besoin.
+- **Tier 2 (le diff cache un piège non-évident)** → annoter le *pourquoi/piège* sur l'artefact déjà tracké : corps de la PR (ou message de commit), jamais un nouveau fichier.
+- **Skip** → coder, le code + le commit sont le record.
 
-**Workflow:**
-1. Before touching code for a decision, write the ADR (minimum TL;DR + options + chosen).
-2. Reference the ADR path in the PR description under a `## Decisions` section.
-3. On merge, flip `status: active` → `done`.
-
-**What counts as "non-trivial":**
-- New DB column / table / index
-- New auth flow, hook, middleware
-- New external service integration (SDK choice, API surface design)
-- Architecture split decisions (where a layer lives, what package owns it)
-- Non-obvious security tradeoffs (what to leak, what not to)
-- UX flows that lock in a pattern for future pages
-
-**What to skip (no ADR needed):**
-- Icon fix, copy tweak, styling
-- Bugfix that just restores intended behavior
-- Mechanical refactor (rename, extract, reorder)
-- Following an existing pattern documented elsewhere
-
-If unsure → lean toward writing the ADR.
+Les anciens ADR dans `vault/Projects/Simplified Identity/` restent une archive historique valable — ne pas les supprimer, ne pas en créer de nouveaux. Toute session qui voudrait restaurer la règle « mandatory ADR » en citant une position passée est obsolète (cf. anti-patterns du shape gate).
 
 ## Workflow
 
