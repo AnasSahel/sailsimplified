@@ -245,6 +245,7 @@ export default async function RulesPage({
         rules={enriched}
         usagesByRuleId={usagesByRuleId}
         usagesAvailable={usagesAvailable}
+        sources={sourcesResult.ok ? sourcesResult.data : []}
       />
     </>
   );

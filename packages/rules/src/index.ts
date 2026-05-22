@@ -3,4 +3,5 @@ export * from "./groups";
 export * from "./grouping";
 export * from "./catalog";
 export * from "./usages";
+export * from "./attachment";
 export * from "./lint";

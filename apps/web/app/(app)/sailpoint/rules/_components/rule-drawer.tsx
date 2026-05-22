@@ -48,11 +48,14 @@ export function RuleDrawer({
   rules,
   usagesByRuleId,
   usagesAvailable,
+  sources,
 }: {
   rules: RuleRow[];
   usagesByRuleId: ReadonlyMap<string, ReadonlyArray<RuleUsageEntry>>;
   /** False when the source attachment roll-up couldn't be computed. */
   usagesAvailable: boolean;
+  /** All sources (id + name) for the attach picker (#354). */
+  sources: ReadonlyArray<{ id: string; name: string }>;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -247,6 +250,7 @@ export function RuleDrawer({
           rule={rule}
           usagesByRuleId={usagesByRuleId}
           usagesAvailable={usagesAvailable}
+          sources={sources}
         />
       ) : null}
 
@@ -278,10 +282,12 @@ function ConsultBody({
   rule,
   usagesByRuleId,
   usagesAvailable,
+  sources,
 }: {
   rule: RuleRow;
   usagesByRuleId: ReadonlyMap<string, ReadonlyArray<RuleUsageEntry>>;
   usagesAvailable: boolean;
+  sources: ReadonlyArray<{ id: string; name: string }>;
 }) {
   const attachments = usagesByRuleId.get(rule.id) ?? [];
   const isUnattached = usagesAvailable && attachments.length === 0;
@@ -358,8 +364,11 @@ function ConsultBody({
       </Section>
 
       <AttachedSourcesPanel
+        ruleName={rule.name}
+        ruleType={rule.type}
         attachments={attachments}
         usagesAvailable={usagesAvailable}
+        sources={sources}
       />
 
       <Section title="Source code">
