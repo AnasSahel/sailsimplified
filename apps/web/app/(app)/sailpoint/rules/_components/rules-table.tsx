@@ -17,7 +17,9 @@ import { groupRulesByType, type RuleUsageEntry } from "@simplified-identity/rule
 
 import { LastModifiedCell } from "../../transforms/_components/last-modified-cell";
 import { AttachedSourcesCell } from "./attached-sources-cell";
+import { RuleIssuesCell } from "./rule-issues-cell";
 import { RuleTypeIcon } from "./rule-type-icon";
+import type { RuleIssueCount } from "./source-issues";
 import type { RuleRow } from "./types";
 
 /**
@@ -38,16 +40,19 @@ function urlParamForGroup(type: string): string {
 export function RulesTable({
   data,
   usagesByRuleId,
+  issuesByRuleId,
 }: {
   data: RuleRow[];
   /** Per-rule source-attachment breakdown, fed to the cell tooltip. */
   usagesByRuleId?: ReadonlyMap<string, ReadonlyArray<RuleUsageEntry>>;
+  /** Per-rule source-lint counts (#364), fed to the Issues cell. */
+  issuesByRuleId?: ReadonlyMap<string, RuleIssueCount>;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const numColumns = 3;
+  const numColumns = 4;
   const groups = React.useMemo(() => groupRulesByType(data), [data]);
 
   const closedSet = React.useMemo(() => {
@@ -88,11 +93,14 @@ export function RulesTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40 hover:bg-muted/40">
-              <TableHead className="si-micro w-[55%] py-2 uppercase tracking-wider text-muted-foreground">
+              <TableHead className="si-micro w-[48%] py-2 uppercase tracking-wider text-muted-foreground">
                 Name
               </TableHead>
               <TableHead className="si-micro w-24 py-2 text-right uppercase tracking-wider text-muted-foreground">
                 Attached
+              </TableHead>
+              <TableHead className="si-micro w-24 py-2 text-right uppercase tracking-wider text-muted-foreground">
+                Issues
               </TableHead>
               <TableHead className="si-micro w-32 py-2 uppercase tracking-wider text-muted-foreground">
                 Last modified
@@ -133,6 +141,7 @@ export function RulesTable({
                           onNavigate={() => router.push(selectHref(r.id))}
                           href={selectHref(r.id)}
                           usagesEntries={usagesByRuleId?.get(r.id)}
+                          issueCount={issuesByRuleId?.get(r.id)}
                         />
                       ))
                     : null}
@@ -201,18 +210,20 @@ function RuleTableRow({
   href,
   onNavigate,
   usagesEntries,
+  issueCount,
 }: {
   rule: RuleRow;
   href: string;
   onNavigate: () => void;
   usagesEntries?: ReadonlyArray<RuleUsageEntry>;
+  issueCount?: RuleIssueCount;
 }) {
   return (
     <TableRow
       className="cursor-pointer hover:bg-[var(--si-row-hover)]"
       onClick={onNavigate}
     >
-      <TableCell className="w-[55%] py-2">
+      <TableCell className="w-[48%] py-2">
         <a
           href={href}
           onClick={(e) => e.preventDefault()}
@@ -229,6 +240,11 @@ function RuleTableRow({
             ruleId={rule.id}
             entries={usagesEntries}
           />
+        </span>
+      </TableCell>
+      <TableCell className="w-24 py-2 text-right">
+        <span className="inline-flex" onClick={(e) => e.stopPropagation()}>
+          <RuleIssuesCell ruleId={rule.id} count={issueCount} />
         </span>
       </TableCell>
       <TableCell className="w-32 py-2">

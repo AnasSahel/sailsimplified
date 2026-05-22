@@ -22,6 +22,11 @@ import { RuleDrawer } from "./_components/rule-drawer";
 import { RulesKpiStrip } from "./_components/rules-kpi-strip";
 import { RulesTable } from "./_components/rules-table";
 import { RuleTypeFilter } from "./_components/rule-type-filter";
+import {
+  aggregateIssueCounts,
+  computeRuleIssueCounts,
+  type RuleIssueCount,
+} from "./_components/source-issues";
 import type { RuleRow } from "./_components/types";
 
 /**
@@ -48,11 +53,13 @@ function Toolbar({
   q,
   type,
   attached,
+  issues,
   availableTypes,
 }: {
   q: string;
   type: string | null;
   attached: "unattached" | "all";
+  issues: boolean;
   availableTypes: string[];
 }) {
   return (
@@ -68,6 +75,7 @@ function Toolbar({
           {attached === "unattached" && (
             <input type="hidden" name="attached" value="0" />
           )}
+          {issues && <input type="hidden" name="issues" value="1" />}
           <Search
             className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden
@@ -89,7 +97,12 @@ function Toolbar({
 export default async function RulesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; type?: string; attached?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    type?: string;
+    attached?: string;
+    issues?: string;
+  }>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
@@ -98,6 +111,7 @@ export default async function RulesPage({
   const q = (params.q ?? "").trim();
   const typeFilter = (params.type ?? "").trim() || null;
   const attachedFilter = params.attached === "0" ? "unattached" : "all";
+  const issuesFilter = params.issues === "1";
 
   const userId = session.user.id;
 
@@ -200,6 +214,16 @@ export default async function RulesPage({
     attachedCount: usagesAvailable ? (usagesByRuleId.get(r.id)?.length ?? 0) : undefined,
   }));
 
+  // Source-lint roll-up (#364). The list already carries `sourceCode` inline,
+  // so we lint the whole set here — no N+1, no snapshot. Best-effort: a lint
+  // failure must never break the list page.
+  let issuesByRuleId: Map<string, RuleIssueCount> = new Map();
+  try {
+    issuesByRuleId = computeRuleIssueCounts(rules);
+  } catch {
+    issuesByRuleId = new Map();
+  }
+
   const all = [...enriched].sort((a, b) => a.name.localeCompare(b.name));
 
   const availableTypes = Array.from(new Set(all.map((r) => r.type))).sort();
@@ -209,10 +233,15 @@ export default async function RulesPage({
   const bySearch = needle
     ? byType.filter((r) => searchableMatch(r, needle))
     : byType;
-  const filtered =
+  const byAttached =
     attachedFilter === "unattached" && usagesAvailable
       ? bySearch.filter((r) => (r.attachedCount ?? 0) === 0)
       : bySearch;
+  const filtered = issuesFilter
+    ? byAttached.filter((r) => issuesByRuleId.has(r.id))
+    : byAttached;
+
+  const issueAggregate = aggregateIssueCounts(filtered, issuesByRuleId);
 
   const kpis = {
     total: filtered.length,
@@ -220,6 +249,9 @@ export default async function RulesPage({
     attachedCount: filtered.filter((r) => (r.attachedCount ?? 0) > 0).length,
     unattachedCount: filtered.filter((r) => (r.attachedCount ?? 0) === 0).length,
     usagesAvailable,
+    issueErrorCount: issueAggregate.errorCount,
+    issueWarningCount: issueAggregate.warningCount,
+    rulesWithIssues: issueAggregate.rulesWithIssues,
   };
 
   return (
@@ -236,9 +268,14 @@ export default async function RulesPage({
             q={q}
             type={typeFilter}
             attached={attachedFilter}
+            issues={issuesFilter}
             availableTypes={availableTypes}
           />
-          <RulesTable data={filtered} usagesByRuleId={usagesByRuleId} />
+          <RulesTable
+            data={filtered}
+            usagesByRuleId={usagesByRuleId}
+            issuesByRuleId={issuesByRuleId}
+          />
         </div>
       </PageShell>
       <RuleDrawer
