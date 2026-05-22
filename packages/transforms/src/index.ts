@@ -9,4 +9,5 @@ export * from "./recipe";
 export * from "./build-graph";
 export * from "./usages";
 export * from "./samples";
+export * from "./auto-samples";
 export * from "./lint";

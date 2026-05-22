@@ -303,6 +303,46 @@ export const tenantSettings = sqliteTable("tenant_settings", {
     .notNull(),
 });
 
+/**
+ * Per-user "quick samples" attached to a SailPoint transform (issue #69,
+ * Phase 2 — hybrid auto-extract + user-saved). One row per saved sample;
+ * the Test tab in the transform editor renders these as clickable chips
+ * that pre-fill the INPUT textarea.
+ *
+ * Auto-extracted samples (e.g. `lookup` table keys) live in code, not
+ * here — see `@simplified-identity/transforms` `extractAutoSamples`.
+ * This table only stores values the user explicitly clicked "Save as
+ * sample" on after a successful Run.
+ *
+ * Scoping is per-user (every fetcher in this app is already userId-keyed)
+ * — never cross-user, even within the same org. Values can carry PII
+ * (employee IDs, emails) so leakage would be a real privacy issue.
+ *
+ * `transformId` is the opaque ISC transform id (string). "new" transforms
+ * (not yet persisted) have no stable id and therefore can't be saved
+ * against — the editor masks the "Save as sample" button in that mode.
+ */
+export const transformSample = sqliteTable(
+  "transform_samples",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    transformId: text("transform_id").notNull(),
+    value: text("value").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    userTransformIdx: index("idx_transform_samples_user_transform").on(
+      table.userId,
+      table.transformId,
+    ),
+  }),
+);
+
 // ---------------------------------------------------------------------------
 // Source schema drift (issue #265).
 //

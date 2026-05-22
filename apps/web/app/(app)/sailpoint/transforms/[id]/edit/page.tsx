@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { sailpointFetch } from "@/lib/sailpoint/client";
+import { listUserSamples } from "@/lib/transform-samples/queries";
 
 import { TransformEditor } from "../../_components/transform-editor";
 
@@ -29,7 +30,7 @@ export default async function EditTransformPage({
   const { id } = await params;
   const userId = session.user.id;
 
-  const [result, tenantTransformsResult, tenantSourcesResult] =
+  const [result, tenantTransformsResult, tenantSourcesResult, userSamples] =
     await Promise.all([
       sailpointFetch<FullTransform>(
         userId,
@@ -51,6 +52,7 @@ export default async function EditTransformPage({
         ok: false as const,
         error: { kind: "api_error" as const, status: 0, message: "" },
       })),
+      listUserSamples(userId, id).catch(() => []),
     ]);
 
   if (!result.ok) {
@@ -106,6 +108,7 @@ export default async function EditTransformPage({
       tenantSources={
         tenantSourcesResult.ok ? tenantSourcesResult.data : []
       }
+      userSamples={userSamples}
     />
   );
 }

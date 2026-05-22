@@ -11,6 +11,7 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  Bookmark,
   Loader2,
   Play,
   Save,
@@ -44,8 +45,14 @@ import {
   type RequiredSimulationInput,
   type Trace,
 } from "@simplified-identity/transforms";
-import { sampleFor } from "@simplified-identity/transforms";
+import { sampleFor, extractAutoSamples } from "@simplified-identity/transforms";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ExecutionTrace } from "./execution-trace";
 import { JsonPanel } from "./json-panel";
 import { RecipeTree } from "./recipe-tree";
@@ -64,6 +71,8 @@ import { DeleteTransformDialog } from "./delete-dialog";
 import { RecipeView } from "./recipe-view";
 import { TypePicker } from "./type-picker";
 import { TypePill } from "../../../_components/type-pill";
+import { QuickSamples, type UserSampleChip } from "./quick-samples";
+import { saveTransformSampleAction } from "@/lib/transform-samples/actions";
 import {
   attributesMatchTemplate,
   deriveAttributes,
@@ -99,11 +108,18 @@ export function TransformEditor({
   initialJson,
   tenantTransforms,
   tenantSources,
+  userSamples,
 }: {
   mode: Mode;
   initialJson?: string;
   tenantTransforms: ReadonlyArray<TenantTransform>;
   tenantSources: ReadonlyArray<TenantSource>;
+  /**
+   * Per-user saved quick samples for the current transform (edit mode
+   * only). Empty in `new` mode because a not-yet-persisted transform
+   * has no stable id to scope samples against.
+   */
+  userSamples?: ReadonlyArray<UserSampleChip>;
 }) {
   const router = useRouter();
   const editorRef = React.useRef<ReactCodeMirrorRef | null>(null);
@@ -417,6 +433,8 @@ export function TransformEditor({
                 draftJson={localValidation.ok ? value : null}
                 tenantTransforms={tenantTransforms}
                 tenantSources={tenantSources}
+                transformId={mode.kind === "edit" ? mode.id : null}
+                initialUserSamples={userSamples ?? []}
               />
             )}
           </div>
@@ -720,10 +738,17 @@ function TreePanel({ draftJson }: { draftJson: string | null }) {
 function TestPanel({
   draftJson,
   tenantTransforms,
+  transformId,
+  initialUserSamples,
 }: {
   draftJson: string | null;
   tenantTransforms: ReadonlyArray<TenantTransform>;
   tenantSources: ReadonlyArray<TenantSource>;
+  /** Null in `new` mode — "Save as sample" renders disabled with a
+   *  tooltip explaining the gate, since there's no stable id to scope
+   *  persistence against until the transform is created. */
+  transformId: string | null;
+  initialUserSamples: ReadonlyArray<UserSampleChip>;
 }) {
   const parsed = draftJson ? safeParse(draftJson) : null;
   const [input, setInput] = React.useState<string>("");
@@ -732,6 +757,59 @@ function TestPanel({
   >({});
   const [result, setResult] = React.useState<EvalResult | null>(null);
   const [traces, setTraces] = React.useState<Trace[]>([]);
+
+  // Local diffs against the server-provided baseline. We track only the
+  // optimistic additions (`added`) and deletions (`removedIds`) and
+  // derive the rendered list from them — this avoids a setState-in-effect
+  // mirror pattern (React 19 compiler complains about that, and rightly
+  // so). When the server prop changes after a `revalidatePath`, the diffs
+  // are naturally reconciled: the new baseline reflects the saved row,
+  // and the matching `added` entry becomes a no-op duplicate that we
+  // filter out by id.
+  const [added, setAdded] = React.useState<UserSampleChip[]>([]);
+  const [removedIds, setRemovedIds] = React.useState<Set<string>>(
+    () => new Set(),
+  );
+  const userSamples = React.useMemo<UserSampleChip[]>(() => {
+    const baselineIds = new Set(initialUserSamples.map((s) => s.id));
+    const filteredBaseline = initialUserSamples.filter(
+      (s) => !removedIds.has(s.id),
+    );
+    const newOnly = added.filter((s) => !baselineIds.has(s.id));
+    return [...filteredBaseline, ...newOnly];
+  }, [initialUserSamples, added, removedIds]);
+
+  const [savingSample, setSavingSample] = React.useState(false);
+  const [saveSampleError, setSaveSampleError] = React.useState<string | null>(
+    null,
+  );
+
+  // Auto-extracted samples derived from the draft spec (pure function in
+  // @simplified-identity/transforms). Cheap — for `lookup` it inspects
+  // `attributes.table` keys, for everything else returns []. No memo
+  // needed: `parsed` is recreated each render anyway (from `safeParse`)
+  // so the memo deps would invalidate every render.
+  const autoSamples: string[] = parsed?.type
+    ? extractAutoSamples({
+        type: parsed.type,
+        attributes: parsed.attributes,
+      })
+    : [];
+
+  // Dedup the "Save as sample" trigger: disabled when the current INPUT
+  // is empty, when it duplicates an existing chip (auto or user), or
+  // while a save is in flight. Trim-compared to match the server-side
+  // empty-value rejection.
+  const inputTrimmed = input.trim();
+  const inputAlreadySaved =
+    inputTrimmed !== "" &&
+    (autoSamples.includes(input) ||
+      userSamples.some((s) => s.value === input));
+  const canSaveSample =
+    !savingSample &&
+    transformId !== null &&
+    inputTrimmed !== "" &&
+    !inputAlreadySaved;
 
   // The transformsByName map for `reference` resolution. Real types/attrs
   // aren't loaded here (we only have id/name/type) so reference resolution
@@ -849,15 +927,93 @@ function TestPanel({
         </section>
       )}
 
-      <Button
-        type="button"
-        size="sm"
-        onClick={run}
-        className="gap-1.5 bg-foreground text-background hover:bg-foreground/90"
-      >
-        <Play className="h-3 w-3" />
-        Run
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          size="sm"
+          onClick={run}
+          className="gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+        >
+          <Play className="h-3 w-3" />
+          Run
+        </Button>
+        {transformId === null ? (
+          // `new` mode: the transform has no stable id yet, so we can't
+          // scope a sample row against it (FK constraint on
+          // `transform_samples.transform_id`). Render the button as
+          // disabled with a tooltip explaining the gate, rather than
+          // hiding it silently — otherwise the affordance vanishes
+          // between "Edit" and "New" with no explanation.
+          //
+          // Uses `aria-disabled` (not `disabled`) so Radix Tooltip can
+          // still fire on hover/focus — `disabled` swallows pointer
+          // events and the tooltip never opens.
+          <TooltipProvider delayDuration={150}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-disabled="true"
+                  onClick={(e) => e.preventDefault()}
+                  className="gap-1.5 text-[11px] cursor-not-allowed opacity-60"
+                >
+                  <Bookmark className="h-3 w-3" />
+                  Save as sample
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Available after creating the transform
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            disabled={!canSaveSample}
+            onClick={async () => {
+              if (!canSaveSample) return;
+              setSavingSample(true);
+              setSaveSampleError(null);
+              try {
+                const r = await saveTransformSampleAction(transformId, input);
+                if (!r.ok) {
+                  setSaveSampleError(r.error);
+                  return;
+                }
+                // Optimistic local update — the server-side
+                // revalidatePath also pushes the truth into
+                // `initialUserSamples` on the next render.
+                setAdded((prev) => [...prev, { id: r.id, value: input }]);
+              } catch (e) {
+                setSaveSampleError((e as Error).message);
+              } finally {
+                setSavingSample(false);
+              }
+            }}
+            className="gap-1.5 text-[11px]"
+            title={
+              inputAlreadySaved
+                ? "Already in samples"
+                : inputTrimmed === ""
+                  ? "Type something in INPUT first"
+                  : "Save the current input as a sample"
+            }
+          >
+            <Bookmark className="h-3 w-3" />
+            Save as sample
+          </Button>
+        )}
+      </div>
+
+      {saveSampleError && (
+        <p className="font-mono text-[11px] text-rose-700 dark:text-rose-300">
+          {saveSampleError}
+        </p>
+      )}
 
       {result !== null && traces.length > 0 && (
         <ExecutionTrace traces={traces} />
@@ -865,7 +1021,18 @@ function TestPanel({
 
       {result !== null && <FinalBox result={result} />}
 
-      <QuickSamples />
+      <QuickSamples
+        autoSamples={autoSamples}
+        userSamples={userSamples}
+        onSelect={(value) => setInput(value)}
+        onUserSampleRemoved={(removedId) =>
+          setRemovedIds((prev) => {
+            const next = new Set(prev);
+            next.add(removedId);
+            return next;
+          })
+        }
+      />
     </div>
   );
 }
@@ -931,22 +1098,13 @@ function StatusBadge({ ok }: { ok: boolean }) {
   );
 }
 
-// ── Quick samples (Phase 1 placeholder) ─────────────────────────────
+// ── Quick samples (Phase 2 — hybrid auto-extract + user-saved) ───────
 //
-// Empty-state slot reserved for Phase 2 (#69). Sourcing strategy TBD —
-// candidates: registry samples (sampleFor), recent Runs, identity
-// fixtures. Slot in place so Phase 2 only fills the chip list.
-
-function QuickSamples() {
-  return (
-    <section>
-      <SectionLabel>Quick samples</SectionLabel>
-      <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/50 px-3 py-4 text-center text-[11px] text-muted-foreground dark:border-slate-800 dark:bg-slate-900/30">
-        No quick samples configured yet.
-      </div>
-    </section>
-  );
-}
+// Moved into its own client component `./quick-samples.tsx`. The slot
+// is wired in `TestPanel` above with `autoSamples` (from the transform
+// spec, pure-derived) and `userSamples` (persisted in
+// `transform_samples`, loaded by the server `[id]/edit/page.tsx`).
+// See ADR `2026-05-14-transform-quick-samples-phase2.md`.
 
 // ── Raw JSON editor (when toggled open) ──────────────────────────────
 
