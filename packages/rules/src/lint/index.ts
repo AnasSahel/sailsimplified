@@ -6,3 +6,4 @@
 export * from "./types.ts";
 export * from "./engine.ts";
 export { detectors, unattachedRule } from "./rules/index.ts";
+export * from "./source/index.ts";
