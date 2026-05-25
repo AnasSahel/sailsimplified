@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -35,7 +36,6 @@ import {
 import { InternalFilter, type InternalFilterValue } from "./_components/internal-filter";
 import { LayoutToggle, type Layout } from "./_components/layout-toggle";
 import { PageActions } from "./_components/page-actions";
-import { TransformDrawer } from "./_components/transform-drawer";
 import { TransformsGrid } from "./_components/transforms-grid";
 import { TransformsKpiStrip } from "./_components/transforms-kpi-strip";
 import { TransformsTable } from "./_components/transforms-table";
@@ -213,12 +213,18 @@ export default async function TransformsPage({
     groupBy?: string;
     usages?: string;
     issues?: string;
+    selected?: string;
   }>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
 
   const params = await searchParams;
+
+  // Legacy drawer URL: ?selected=<id> → redirect to the unified detail page.
+  if (params.selected) {
+    redirect(`/sailpoint/transforms/${encodeURIComponent(params.selected)}`);
+  }
   const per = perFromParam(params.per);
   const q = (params.q ?? "").trim();
   const typeFilter = (params.type ?? "").trim() || null;
@@ -436,70 +442,58 @@ export default async function TransformsPage({
   const rangeEnd = Math.min(page * per, total);
 
   return (
-    // The drawer is `position: fixed` top-right and publishes its width on
-    // `:root` via the `--workspace-drawer-width` CSS variable; the app layout
-    // consumes it as `padding-right` to push the topbar + page chrome to the
-    // left. So the page itself can stay a plain `<PageShell>` here — no split
-    // layout to wire up.
-    <>
-      <PageShell
-        title="Transforms"
-        description="Identity transforms defined on the connected SailPoint tenant."
-        actions={<PageActions />}
-      >
-        <div className="space-y-4">
-          <TransformsKpiStrip kpis={kpis} />
-          <Toolbar
-            per={per}
-            q={q}
-            type={typeFilter}
-            internal={internalFilter}
-            layout={layout}
-            group={groupFilter}
+    <PageShell
+      title="Transforms"
+      description="Identity transforms defined on the connected SailPoint tenant."
+      actions={<PageActions />}
+    >
+      <div className="space-y-4">
+        <TransformsKpiStrip kpis={kpis} />
+        <Toolbar
+          per={per}
+          q={q}
+          type={typeFilter}
+          internal={internalFilter}
+          layout={layout}
+          group={groupFilter}
+          groupBy={groupingMode}
+          usages={usagesFilter}
+          issues={issuesFilter}
+          availableTypes={availableTypes}
+          availableGroups={availableGroups}
+        />
+        {layout === "grid" ? (
+          <TransformsGrid
+            transforms={visible}
+            tenantTransformNames={tenantTransformNames}
+            usagesByName={usagesByName}
+            issuesByTransformId={issuesByTransformId}
+          />
+        ) : (
+          <TransformsTable
+            data={visible}
+            tenantTransformNames={tenantTransformNames}
+            usagesByName={usagesByName}
+            issuesByTransformId={issuesByTransformId}
             groupBy={groupingMode}
-            usages={usagesFilter}
-            issues={issuesFilter}
-            availableTypes={availableTypes}
-            availableGroups={availableGroups}
           />
-          {layout === "grid" ? (
-            <TransformsGrid
-              transforms={visible}
-              tenantTransformNames={tenantTransformNames}
-              usagesByName={usagesByName}
-              issuesByTransformId={issuesByTransformId}
-            />
-          ) : (
-            <TransformsTable
-              data={visible}
-              tenantTransformNames={tenantTransformNames}
-              usagesByName={usagesByName}
-              issuesByTransformId={issuesByTransformId}
-              groupBy={groupingMode}
-            />
-          )}
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            perPage={per}
-            perPageOptions={PAGE_SIZES}
-            hrefForPage={(p) =>
-              buildHref({ page: p, per, q, type: typeFilter, internal: internalFilter, layout, group: groupFilter, groupBy: groupingMode, usages: usagesFilter, issues: issuesFilter })
-            }
-            hrefForPerPage={(n) =>
-              buildHref({ page: 1, per: n as PerPage, q, type: typeFilter, internal: internalFilter, layout, group: groupFilter, groupBy: groupingMode, usages: usagesFilter, issues: issuesFilter })
-            }
-          />
-        </div>
-      </PageShell>
-      <TransformDrawer
-        transforms={enriched}
-        usagesByName={usagesByName}
-        usagesAvailable={usagesAvailable}
-      />
-    </>
+        )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+          perPage={per}
+          perPageOptions={PAGE_SIZES}
+          hrefForPage={(p) =>
+            buildHref({ page: p, per, q, type: typeFilter, internal: internalFilter, layout, group: groupFilter, groupBy: groupingMode, usages: usagesFilter, issues: issuesFilter })
+          }
+          hrefForPerPage={(n) =>
+            buildHref({ page: 1, per: n as PerPage, q, type: typeFilter, internal: internalFilter, layout, group: groupFilter, groupBy: groupingMode, usages: usagesFilter, issues: issuesFilter })
+          }
+        />
+      </div>
+    </PageShell>
   );
 }

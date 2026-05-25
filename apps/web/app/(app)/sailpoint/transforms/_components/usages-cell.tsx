@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 
 import { Pill } from "@/components/ui/pill";
 import {
@@ -24,9 +23,8 @@ import type { UsageEntry } from "@simplified-identity/transforms";
  *   - `usages === undefined`   → plain `—`             — usages couldn't be
  *                                                       computed; don't badge
  *
- * Clicking the badge opens the transform drawer on the Usage tab via
- * `?selected=<id>&tab=usage`. The drawer reads `?tab=` to initialise its
- * panel selection; if absent it stays on Configuration (existing behavior).
+ * Clicking the badge navigates to the unified transform detail page
+ * at `/sailpoint/transforms/<id>` where the Usages section is visible.
  *
  * The tooltip shows the usage breakdown by kind when entries are passed in.
  * The sidebar layout already provides a `<TooltipProvider>`, so callers
@@ -46,15 +44,7 @@ export function UsagesCell({
   usagesEntries?: ReadonlyArray<UsageEntry>;
   className?: string;
 }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const href = React.useMemo(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("selected", transformId);
-    params.set("tab", "usage");
-    return `${pathname}?${params.toString()}`;
-  }, [pathname, searchParams, transformId]);
+  const href = `/sailpoint/transforms/${encodeURIComponent(transformId)}`;
 
   if (usages === undefined) {
     return (
@@ -79,7 +69,6 @@ export function UsagesCell({
         <TooltipTrigger asChild>
           <Link
             href={href}
-            scroll={false}
             onClick={(e) => e.stopPropagation()}
             className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={tooltipText}

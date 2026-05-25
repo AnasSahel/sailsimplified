@@ -56,7 +56,7 @@ export async function saveTransformSampleAction(
     return { ok: false, error: (e as Error).message };
   }
 
-  revalidatePath(`/sailpoint/transforms/${transformId}/edit`);
+  revalidatePath(`/sailpoint/transforms/${transformId}`);
   return { ok: true, id };
 }
 
@@ -108,6 +108,6 @@ export async function deleteTransformSampleAction(
     return { ok: false, error: (e as Error).message };
   }
 
-  revalidatePath(`/sailpoint/transforms/${rows[0].transformId}/edit`);
+  revalidatePath(`/sailpoint/transforms/${rows[0].transformId}`);
   return { ok: true };
 }
