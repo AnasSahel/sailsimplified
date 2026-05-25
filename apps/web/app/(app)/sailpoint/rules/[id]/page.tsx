@@ -234,16 +234,22 @@ export default async function RuleDetailPage({
         <GuardedTabsNav
           size="md"
           value={tab}
-          hrefFor={(k) =>
-            k === "edit" ? basePath : `${basePath}?tab=${k}`
-          }
           items={[
-            { key: "edit", label: "Edit" },
-            { key: "overview", label: "Overview" },
-            { key: "signature", label: "Signature" },
+            { key: "edit", label: "Edit", href: basePath },
+            {
+              key: "overview",
+              label: "Overview",
+              href: `${basePath}?tab=overview`,
+            },
+            {
+              key: "signature",
+              label: "Signature",
+              href: `${basePath}?tab=signature`,
+            },
             {
               key: "attachments",
               label: "Attachments",
+              href: `${basePath}?tab=attachments`,
               count: usagesAvailable ? attachedCount : null,
             },
           ]}
