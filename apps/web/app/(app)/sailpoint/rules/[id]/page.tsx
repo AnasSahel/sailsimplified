@@ -21,7 +21,7 @@ import {
 import {
   DetailHeader,
   DetailShell,
-} from "../../../../_components/detail-shell";
+} from "../../../_components/detail-shell";
 import { AttachedSourcesPanel } from "../_components/attached-sources-panel";
 import { RuleTypeIcon } from "../_components/rule-type-icon";
 import type { RuleRow } from "../_components/types";

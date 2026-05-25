@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import {
   DetailHeader,
   DetailShell,
-} from "../../../../_components/detail-shell";
+} from "../../../_components/detail-shell";
 import { RulePageEditor } from "../[id]/_components/rule-page-client";
 
 export default async function NewRulePage() {
