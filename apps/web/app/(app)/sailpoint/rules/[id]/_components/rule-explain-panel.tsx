@@ -228,8 +228,8 @@ export function RuleExplainPanel({
               Data notice — shown once
             </p>
             <p className="si-caption text-amber-800 dark:text-amber-200">
-              Clicking <strong>Continue</strong> sends this rule&apos;s BeanShell
-              source code to <strong>Anthropic</strong> to generate the
+              Clicking <strong>Continue</strong>{" "}sends this rule&apos;s BeanShell
+              source code to <strong>Anthropic</strong>{" "}to generate the
               explanation. The code is not stored by Anthropic beyond the
               inference call. This action is per-rule and user-triggered only —
               it never runs automatically.
