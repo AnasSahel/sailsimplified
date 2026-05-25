@@ -6,14 +6,15 @@ import {
   CopyPlus,
   EyeOff,
   FileCode2,
-  Sparkles,
   Trash2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
+  analyzeSource,
   getRuleCatalogEntry,
   ruleGroupFor,
+  type SourceAnalysis,
 } from "@simplified-identity/rules";
 
 import { DeleteRuleDialog } from "../../_components/delete-rule-dialog";
@@ -26,6 +27,7 @@ import {
 } from "../../_components/rule-issues-banner";
 import { RuleEditor, type RuleEditorMode } from "../../_components/rule-editor";
 import type { RuleRow } from "../../_components/types";
+import { RuleExplainPanel } from "./rule-explain-panel";
 
 // ── Header action bar ─────────────────────────────────────────────────────────
 
@@ -61,15 +63,6 @@ export function RulePageActions({
         onClick={() => setDeleteOpen(true)}
       >
         <Trash2 className="h-3.5 w-3.5" /> Delete
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5"
-        disabled
-        title="Coming soon (#373)"
-      >
-        <Sparkles className="h-3.5 w-3.5" /> Explain with AI
       </Button>
 
       <DuplicateRuleDialog
@@ -151,6 +144,17 @@ export function RuleOverviewClient({
   const summaryLabel = issueSummary
     ? issuesSummary(issueSummary.errorCount, issueSummary.warningCount)
     : "";
+
+  // Run the BeanShell lexer client-side to pass ground-truth facts to the AI
+  // (optional enrichment — explain works on raw source alone if this fails).
+  const sourceAnalysis = React.useMemo<SourceAnalysis | null>(() => {
+    if (!script) return null;
+    try {
+      return analyzeSource(script);
+    } catch {
+      return null;
+    }
+  }, [script]);
 
   const sourcePreview = React.useMemo(() => {
     if (!script) return null;
@@ -304,9 +308,27 @@ export function RuleOverviewClient({
           </div>
         </OverviewSection>
       ) : null}
+
+      <OverviewSection title="AI explanation">
+        <RuleExplainPanel
+          ruleType={rule.type}
+          sourceCode={script || null}
+          signature={rule.signature as RuleSignature | null | undefined}
+          sourceAnalysis={sourceAnalysis}
+        />
+      </OverviewSection>
     </div>
   );
 }
+
+type RuleSignature = {
+  input?: Array<{
+    name: string;
+    type?: string | null;
+    description?: string | null;
+  }>;
+  output?: { name: string; type?: string | null } | null;
+};
 
 function OverviewSection({
   title,
