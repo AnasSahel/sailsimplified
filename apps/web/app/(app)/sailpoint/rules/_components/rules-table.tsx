@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 
 import { Pill } from "@/components/ui/pill";
@@ -78,13 +79,8 @@ export function RulesTable({
   );
 
   const selectHref = React.useCallback(
-    (id: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("selected", id);
-      const qs = params.toString();
-      return qs ? `${pathname}?${qs}` : pathname;
-    },
-    [pathname, searchParams],
+    (id: string) => `/sailpoint/rules/${encodeURIComponent(id)}`,
+    [],
   );
 
   return (
@@ -138,7 +134,6 @@ export function RulesTable({
                         <RuleTableRow
                           key={r.id}
                           rule={r}
-                          onNavigate={() => router.push(selectHref(r.id))}
                           href={selectHref(r.id)}
                           usagesEntries={usagesByRuleId?.get(r.id)}
                           issueCount={issuesByRuleId?.get(r.id)}
@@ -208,30 +203,29 @@ function GroupHeaderRow({
 function RuleTableRow({
   rule,
   href,
-  onNavigate,
   usagesEntries,
   issueCount,
 }: {
   rule: RuleRow;
   href: string;
-  onNavigate: () => void;
   usagesEntries?: ReadonlyArray<RuleUsageEntry>;
   issueCount?: RuleIssueCount;
 }) {
+  const router = useRouter();
   return (
     <TableRow
       className="cursor-pointer hover:bg-[var(--si-row-hover)]"
-      onClick={onNavigate}
+      onClick={() => router.push(href)}
     >
       <TableCell className="w-[48%] py-2">
-        <a
+        <Link
           href={href}
-          onClick={(e) => e.preventDefault()}
+          onClick={(e) => e.stopPropagation()}
           className="flex w-full items-center gap-2 font-mono si-caption"
         >
           <RuleTypeIcon type={rule.type} />
           <span className="truncate">{rule.name}</span>
-        </a>
+        </Link>
       </TableCell>
       <TableCell className="w-24 py-2 text-right">
         <span className="inline-flex" onClick={(e) => e.stopPropagation()}>
