@@ -15,9 +15,14 @@ import {
 
 import { findAvailableCopyName } from "./copy-name";
 
+/**
+ * `conflict` flags a concurrency stop (the transform changed under us — #391
+ * catch-up of the same guard already shipped on rules under #355). The
+ * editor reacts by hiding Save and surfacing an amber Overwrite button.
+ */
 export type ActionResult =
   | { ok: true; id: string }
-  | { ok: false; error: string };
+  | { ok: false; error: string; conflict?: boolean };
 
 /**
  * Validate the JSON shape and return a normalized payload or a
@@ -87,15 +92,51 @@ export async function createTransformAction(
   return { ok: true, id: result.id };
 }
 
+/**
+ * Update an existing transform. When `expectedModified` is provided, re-fetch
+ * the original first and reject the save with `conflict: true` if the live
+ * `modified` differs (the transform changed under us — #391). The UI surfaces
+ * the conflict as an amber Overwrite button that re-calls with `force: true`.
+ *
+ * `TransformRecord` doesn't declare `modified` in its TS type, but the ISC
+ * API always returns it on a custom transform — same shape as ConnectorRule.
+ * We narrow defensively: if either side is missing the field, we skip the
+ * check rather than fail-closed (don't block saves on a missing field that
+ * the server may or may not surface).
+ */
 export async function updateTransformAction(
   id: string,
   jsonString: string,
+  expectedModified?: string | null,
+  opts?: { force?: boolean },
 ): Promise<ActionResult> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return { ok: false, error: "Not signed in." };
 
   const validated = validateAndParse(jsonString);
   if (!validated.ok) return { ok: false, error: validated.error };
+
+  if (!opts?.force && expectedModified != null) {
+    const original = await getTransform(session.user.id, id);
+    if (!original.ok) {
+      return {
+        ok: false,
+        error:
+          original.status > 0
+            ? `${original.status} ${original.message}`
+            : original.message,
+      };
+    }
+    const currentModified = (original.data as { modified?: string }).modified;
+    if (currentModified != null && currentModified !== expectedModified) {
+      return {
+        ok: false,
+        conflict: true,
+        error:
+          "This transform changed in SailPoint since you opened it. Saving will overwrite the newer version.",
+      };
+    }
+  }
 
   const result = await updateTransform(session.user.id, id, validated.payload);
   if (!result.ok) {
