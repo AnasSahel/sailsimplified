@@ -289,7 +289,12 @@ export default async function TransformPage({
 
   return (
     <TransformEditor
-      mode={{ kind: "edit", id, originalName: data.name }}
+      mode={{
+        kind: "edit",
+        id,
+        originalName: data.name,
+        modified: data.modified ?? null,
+      }}
       initialJson={initialJson}
       tenantTransforms={tenantTransforms}
       tenantSources={tenantSources}

@@ -92,7 +92,14 @@ import {
 
 type Mode =
   | { kind: "new" }
-  | { kind: "edit"; id: string; originalName: string };
+  | {
+      kind: "edit";
+      id: string;
+      originalName: string;
+      /** ISC `modified` ISO timestamp captured at page load — passed back to
+       *  `updateTransformAction` for the concurrency guard (#391). */
+      modified?: string | null;
+    };
 
 type TenantTransform = { id: string; name: string; type: string };
 type TenantSource = { id: string; name: string };
@@ -147,8 +154,25 @@ export function TransformEditor({
   const [tab, setTab] = React.useState<DrawerTab>("test");
   const [showRaw, setShowRaw] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [conflict, setConflict] = React.useState(false);
+
+  const expectedModified = mode.kind === "edit" ? (mode.modified ?? null) : null;
 
   const dirty = value !== initial;
+
+  // Unsaved-changes guard on hard navigation / tab close (#391 — mirrors the
+  // rules pattern at rule-editor.tsx:114-123). SPA nav (Next router) is NOT
+  // caught here — `beforeunload` only fires on full unloads. SPA-nav guard
+  // is tracked separately under #355.
+  React.useEffect(() => {
+    if (!dirty) return;
+    function onBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
   const localValidation = React.useMemo(() => validateLocally(value), [value]);
   const derived = React.useMemo(() => deriveRoot(value), [value]);
 
@@ -221,17 +245,23 @@ export function TransformEditor({
     return view ? view.state.doc.toString() : value;
   }
 
-  function onSave() {
+  function onSave(force = false) {
     setError(null);
+    setConflict(false);
     const current = liveValue();
     startTransition(async () => {
       let result: ActionResult;
       if (mode.kind === "new") {
         result = await createTransformAction(current);
       } else {
-        result = await updateTransformAction(mode.id, current);
+        result = await updateTransformAction(mode.id, current, expectedModified, {
+          force,
+        });
       }
       if (!result.ok) {
+        if (result.conflict) {
+          setConflict(true);
+        }
         setError(result.error);
         return;
       }
@@ -370,6 +400,7 @@ export function TransformEditor({
         issuesCount={issuesCount}
         pending={pending}
         canSave={canSave}
+        conflict={conflict}
         onCancel={onCancel}
         onSave={onSave}
         onDelete={() => setDeleteOpen(true)}
@@ -567,6 +598,7 @@ function PageHeaderBar({
   issuesCount,
   pending,
   canSave,
+  conflict,
   onCancel,
   onSave,
   onDelete,
@@ -577,8 +609,12 @@ function PageHeaderBar({
   issuesCount: number;
   pending: boolean;
   canSave: boolean;
+  /** Concurrency stop — swap Save for amber Overwrite. */
+  conflict: boolean;
   onCancel: () => void;
-  onSave: () => void;
+  /** `force=true` is sent when the user clicks Overwrite to bypass the
+   *  modified-check on the server (#391). */
+  onSave: (force?: boolean) => void;
   onDelete: () => void;
 }) {
   const modeLabel = mode.kind === "new" ? "New" : "Edit";
@@ -652,20 +688,38 @@ function PageHeaderBar({
             Delete
           </Button>
         )}
-        <Button
-          type="button"
-          size="sm"
-          disabled={!canSave}
-          onClick={onSave}
-          className={cn("gap-1.5", !canSave && "cursor-not-allowed")}
-        >
-          {pending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Save className="h-3.5 w-3.5" />
-          )}
-          {mode.kind === "new" ? "Create & Deploy" : "Save changes"}
-        </Button>
+        {conflict ? (
+          <Button
+            type="button"
+            size="sm"
+            disabled={pending}
+            onClick={() => onSave(true)}
+            className="gap-1.5 bg-amber-600 text-white hover:bg-amber-700"
+            title="Force-save — overwrite the newer version in SailPoint"
+          >
+            {pending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            Overwrite
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            disabled={!canSave}
+            onClick={() => onSave(false)}
+            className={cn("gap-1.5", !canSave && "cursor-not-allowed")}
+          >
+            {pending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Save className="h-3.5 w-3.5" />
+            )}
+            {mode.kind === "new" ? "Create & Deploy" : "Save changes"}
+          </Button>
+        )}
       </div>
     </div>
   );
