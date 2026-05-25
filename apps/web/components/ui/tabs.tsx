@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -62,12 +64,21 @@ type CommonProps = {
 
 type HrefMode = {
   hrefFor: (key: string) => string;
+  /**
+   * Optional click interceptor fired on each tab `<Link>` click. Use
+   * to gate navigation (e.g. unsaved-changes guard — see
+   * `useUnsavedChangesGuard` and the colocated `GuardedTabsNav`
+   * wrappers in edit-page subtrees). Must already handle modifier-key
+   * pass-through; this primitive does no logic of its own.
+   */
+  onLinkClick?: (e: React.MouseEvent<HTMLAnchorElement>, key: string) => void;
   onValueChange?: never;
 };
 
 type ControlledMode = {
   onValueChange: (key: string) => void;
   hrefFor?: never;
+  onLinkClick?: never;
 };
 
 export type TabsProps = CommonProps & (HrefMode | ControlledMode);
@@ -77,6 +88,7 @@ export function Tabs({
   value,
   items,
   hrefFor,
+  onLinkClick,
   onValueChange,
   className,
   "aria-label": ariaLabel,
@@ -106,6 +118,7 @@ export function Tabs({
               scroll={false}
               className={itemClass}
               aria-current={ariaCurrent}
+              onClick={onLinkClick ? (e) => onLinkClick(e, item.key) : undefined}
             >
               {body}
             </Link>

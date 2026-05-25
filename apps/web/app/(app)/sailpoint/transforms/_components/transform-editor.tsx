@@ -25,6 +25,10 @@ import {
 
 import { Button } from "@/components/ui/button";
 import {
+  useTrackEditorDirty,
+  useUnsavedChangesGuard,
+} from "@/hooks/use-unsaved-changes-guard";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -160,10 +164,16 @@ export function TransformEditor({
 
   const dirty = value !== initial;
 
+  // Publish dirty to the SPA-nav guard signal (#355) — consumed by the
+  // back-link/breadcrumb in `PageHeaderBar` below. Same pattern as on
+  // the rules side (`rule-editor.tsx`).
+  useTrackEditorDirty(dirty);
+
   // Unsaved-changes guard on hard navigation / tab close (#391 — mirrors the
   // rules pattern at rule-editor.tsx:114-123). SPA nav (Next router) is NOT
-  // caught here — `beforeunload` only fires on full unloads. SPA-nav guard
-  // is tracked separately under #355.
+  // caught here — `beforeunload` only fires on full unloads. SPA-nav is
+  // handled separately via `useUnsavedChangesGuard()` on each interactive
+  // navigation surface (#355).
   React.useEffect(() => {
     if (!dirty) return;
     function onBeforeUnload(e: BeforeUnloadEvent) {
@@ -620,6 +630,10 @@ function PageHeaderBar({
   const modeLabel = mode.kind === "new" ? "New" : "Edit";
   const displayName =
     mode.kind === "edit" ? mode.originalName : name || "(unnamed)";
+  // SPA-nav guard for the two breadcrumb `<Link>`s below — #355. Reads
+  // the dirty signal published by the editor above. No-op when not
+  // dirty, so safe to attach unconditionally.
+  const { guardLinkClick } = useUnsavedChangesGuard();
   return (
     <div className="flex items-center justify-between gap-3 border-b bg-background/70 px-6 py-3 backdrop-blur">
       <nav
@@ -628,6 +642,7 @@ function PageHeaderBar({
       >
         <Link
           href="/sailpoint/transforms"
+          onClick={guardLinkClick}
           className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           aria-label="Back to transforms"
         >
@@ -635,6 +650,7 @@ function PageHeaderBar({
         </Link>
         <Link
           href="/sailpoint/transforms"
+          onClick={guardLinkClick}
           className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
         >
           Transforms
