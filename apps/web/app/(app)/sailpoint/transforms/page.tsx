@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { permanentRedirect, redirect } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -221,9 +221,9 @@ export default async function TransformsPage({
 
   const params = await searchParams;
 
-  // Legacy drawer URL: ?selected=<id> → redirect to the unified detail page.
+  // Legacy drawer URL: ?selected=<id> → permanent redirect to the detail page.
   if (params.selected) {
-    redirect(`/sailpoint/transforms/${encodeURIComponent(params.selected)}`);
+    permanentRedirect(`/sailpoint/transforms/${encodeURIComponent(params.selected)}`);
   }
   const per = perFromParam(params.per);
   const q = (params.q ?? "").trim();
