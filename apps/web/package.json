@@ -12,6 +12,7 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "@codemirror/autocomplete": "^6.20.2",
     "@codemirror/lang-json": "^6.0.2",
     "@codemirror/language": "^6.12.3",

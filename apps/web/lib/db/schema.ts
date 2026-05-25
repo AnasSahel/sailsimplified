@@ -295,6 +295,22 @@ export const tenantSettings = sqliteTable("tenant_settings", {
   aggregationFreshnessThresholdHours: integer(
     "aggregation_freshness_threshold_hours",
   ),
+  /**
+   * Whether the user has dismissed the one-time data-egress notice that
+   * appears before the first "Explain with AI" call (epic #373 / #377).
+   *
+   * Nullable so existing rows (created before this column existed) read
+   * `null`, which the application treats as "not yet dismissed" — same
+   * behaviour as a fresh row with no entry. Set to `1` on first explicit
+   * user confirmation.
+   *
+   * ⚠️ Do NOT remove or default this to `true`: the notice informs users
+   * that the rule's BeanShell source is sent to Anthropic. Silently
+   * dismissing it would violate the privacy posture of this feature.
+   */
+  explainNoticeDismissed: integer("explain_notice_dismissed", {
+    mode: "boolean",
+  }),
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => new Date())
     .notNull(),
@@ -435,5 +451,36 @@ export const sourceMeta = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.userId, table.sourceId] }),
+  }),
+);
+
+/**
+ * Cached AI explanation for a connector rule source (epic #373).
+ *
+ * Keyed by (scopeKey, sourceHash) so:
+ *   - Same source across rules within the same scope hits the cache.
+ *   - An edit to the rule's sourceCode changes its SHA-256 hash, which
+ *     naturally invalidates the old entry (new hash → cache miss → fresh call).
+ *
+ * `scopeKey` is either the active organisation id or the userId when no
+ * org is active (the same dual-scope pattern as the transforms lint cache).
+ * `sourceHash` is the hex SHA-256 of the raw `sourceCode` string.
+ *
+ * Rows are upserted on every new explanation; no explicit invalidation
+ * path needed — the hash is the invalidation key.
+ */
+export const explanationCache = sqliteTable(
+  "explanation_cache",
+  {
+    scopeKey: text("scope_key").notNull(),
+    sourceHash: text("source_hash").notNull(),
+    explanation: text("explanation").notNull(),
+    model: text("model").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.scopeKey, table.sourceHash] }),
   }),
 );
