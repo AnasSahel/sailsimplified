@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -18,7 +19,6 @@ import {
 import { PageShell } from "../../_components/page-shell";
 import { UnresolvedReferencesNote } from "./_components/unresolved-references-note";
 import { NewRuleButton } from "./_components/new-rule-button";
-import { RuleDrawer } from "./_components/rule-drawer";
 import { RulesKpiStrip } from "./_components/rules-kpi-strip";
 import { RulesTable } from "./_components/rules-table";
 import { RuleTypeFilter } from "./_components/rule-type-filter";
@@ -102,12 +102,23 @@ export default async function RulesPage({
     type?: string;
     attached?: string;
     issues?: string;
+    selected?: string;
+    new?: string;
   }>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
 
   const params = await searchParams;
+
+  // Redirect deprecated drawer query params to their new page routes.
+  if (params.selected) {
+    redirect(`/sailpoint/rules/${encodeURIComponent(params.selected)}`);
+  }
+  if (params.new === "1") {
+    redirect("/sailpoint/rules/new");
+  }
+
   const q = (params.q ?? "").trim();
   const typeFilter = (params.type ?? "").trim() || null;
   const attachedFilter = params.attached === "0" ? "unattached" : "all";
@@ -255,35 +266,27 @@ export default async function RulesPage({
   };
 
   return (
-    <>
-      <PageShell
-        title="Rules"
-        description="Connector rules attached to sources on the connected SailPoint tenant."
-        actions={<NewRuleButton />}
-      >
-        <div className="space-y-4">
-          <RulesKpiStrip kpis={kpis} />
-          <UnresolvedReferencesNote unresolved={unresolved} />
-          <Toolbar
-            q={q}
-            type={typeFilter}
-            attached={attachedFilter}
-            issues={issuesFilter}
-            availableTypes={availableTypes}
-          />
-          <RulesTable
-            data={filtered}
-            usagesByRuleId={usagesByRuleId}
-            issuesByRuleId={issuesByRuleId}
-          />
-        </div>
-      </PageShell>
-      <RuleDrawer
-        rules={enriched}
-        usagesByRuleId={usagesByRuleId}
-        usagesAvailable={usagesAvailable}
-        sources={sourcesResult.ok ? sourcesResult.data : []}
-      />
-    </>
+    <PageShell
+      title="Rules"
+      description="Connector rules attached to sources on the connected SailPoint tenant."
+      actions={<NewRuleButton />}
+    >
+      <div className="space-y-4">
+        <RulesKpiStrip kpis={kpis} />
+        <UnresolvedReferencesNote unresolved={unresolved} />
+        <Toolbar
+          q={q}
+          type={typeFilter}
+          attached={attachedFilter}
+          issues={issuesFilter}
+          availableTypes={availableTypes}
+        />
+        <RulesTable
+          data={filtered}
+          usagesByRuleId={usagesByRuleId}
+          issuesByRuleId={issuesByRuleId}
+        />
+      </div>
+    </PageShell>
   );
 }
