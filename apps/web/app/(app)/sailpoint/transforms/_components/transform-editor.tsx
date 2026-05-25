@@ -11,12 +11,16 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Bookmark,
+  Database,
+  GitBranch,
   Loader2,
   Play,
   Save,
   Sparkles,
   Trash2,
+  Users,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -45,7 +49,8 @@ import {
   type RequiredSimulationInput,
   type Trace,
 } from "@simplified-identity/transforms";
-import { sampleFor, extractAutoSamples } from "@simplified-identity/transforms";
+import { sampleFor, extractAutoSamples, groupFor } from "@simplified-identity/transforms";
+import type { UsageEntry } from "@simplified-identity/transforms";
 
 import {
   Tooltip,
@@ -53,6 +58,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DEPENDS_ON_GRAPH_THRESHOLD,
+  DependsOnGraph,
+} from "./depends-on-graph";
 import { ExecutionTrace } from "./execution-trace";
 import { JsonPanel } from "./json-panel";
 import { RecipeTree } from "./recipe-tree";
@@ -72,6 +81,7 @@ import { RecipeView } from "./recipe-view";
 import { TypePicker } from "./type-picker";
 import { TypePill } from "../../../_components/type-pill";
 import { QuickSamples, type UserSampleChip } from "./quick-samples";
+import type { SelectableTransform } from "./types";
 import { saveTransformSampleAction } from "@/lib/transform-samples/actions";
 import {
   attributesMatchTemplate,
@@ -109,6 +119,8 @@ export function TransformEditor({
   tenantTransforms,
   tenantSources,
   userSamples,
+  usages,
+  usagesAvailable,
 }: {
   mode: Mode;
   initialJson?: string;
@@ -120,6 +132,10 @@ export function TransformEditor({
    * has no stable id to scope samples against.
    */
   userSamples?: ReadonlyArray<UserSampleChip>;
+  /** Usage entries for this transform — from the server-side usage map. */
+  usages?: ReadonlyArray<UsageEntry>;
+  /** Whether usage data was available (all three source endpoints ok). */
+  usagesAvailable?: boolean;
 }) {
   const router = useRouter();
   const editorRef = React.useRef<ReactCodeMirrorRef | null>(null);
@@ -172,6 +188,26 @@ export function TransformEditor({
     }
   }, [value, localValidation.ok]);
 
+  // Direct 1-hop reference deps — updated live as the user edits the JSON.
+  // Only meaningful in edit mode; in new mode the transform has no saved deps.
+  const directDeps = React.useMemo(() => {
+    if (mode.kind !== "edit") return [];
+    try {
+      const parsed = JSON.parse(value) as { attributes?: unknown };
+      return Array.from(collectDirectReferenceIds(parsed.attributes));
+    } catch {
+      return [];
+    }
+  }, [value, mode.kind]);
+
+  // Lookup map for DependsOnList — maps transform name → SelectableTransform.
+  // Built from tenantTransforms (already fetched for the editor).
+  const transformsByNameForDeps = React.useMemo<ReadonlyMap<string, SelectableTransform>>(() => {
+    const m = new Map<string, SelectableTransform>();
+    for (const t of tenantTransforms) m.set(t.name, t as SelectableTransform);
+    return m;
+  }, [tenantTransforms]);
+
   const handleRecipeChange = React.useCallback(
     (next: RootRecipe) => {
       setValue(JSON.stringify(recipeToJson(next), null, 2));
@@ -199,7 +235,7 @@ export function TransformEditor({
         setError(result.error);
         return;
       }
-      router.push(`/sailpoint/transforms?selected=${encodeURIComponent(result.id)}`);
+      router.push(`/sailpoint/transforms/${encodeURIComponent(result.id)}`);
       router.refresh();
     });
   }
@@ -416,6 +452,30 @@ export function TransformEditor({
                   {error ?? (localValidation.ok ? "" : localValidation.error)}
                 </p>
               </div>
+            )}
+
+            {mode.kind === "edit" && (
+              <>
+                <PageSection label="Usages" count={usages !== undefined ? usages.length : undefined}>
+                  <EditorUsagesTab
+                    usages={usages ?? []}
+                    usagesAvailable={usagesAvailable ?? false}
+                  />
+                </PageSection>
+
+                <PageSection label="Depends on" count={directDeps.length}>
+                  <EditorDependsOnList
+                    currentId={mode.id}
+                    currentName={derived.name || mode.originalName}
+                    currentType={derived.type ?? ""}
+                    deps={directDeps}
+                    transformsByName={transformsByNameForDeps}
+                    onNavigate={(targetId) =>
+                      router.push(`/sailpoint/transforms/${encodeURIComponent(targetId)}`)
+                    }
+                  />
+                </PageSection>
+              </>
             )}
           </div>
         </div>
@@ -1294,3 +1354,201 @@ function validateLocally(
 
 // deriveRoot, mutateOrRebuild, attributesMatchTemplate live in
 // transform-editor-shared.ts — pure helpers reusable by other editors.
+
+// ── Page section wrapper ─────────────────────────────────────────────
+
+function PageSection({
+  label,
+  count,
+  children,
+}: {
+  label: string;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="pt-6">
+      <h2 className="flex items-center gap-2 pb-3 text-sm font-semibold tracking-tight">
+        {label}
+        {typeof count === "number" && (
+          <span className="inline-flex h-4 items-center rounded bg-muted px-1.5 text-[10px] font-medium text-muted-foreground">
+            {count}
+          </span>
+        )}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+// ── Usages section ───────────────────────────────────────────────────
+
+function EditorUsagesTab({
+  usages,
+  usagesAvailable,
+}: {
+  usages: ReadonlyArray<UsageEntry>;
+  usagesAvailable: boolean;
+}) {
+  if (!usagesAvailable) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Usage data is unavailable for this session — the SailPoint API call
+        timed out or was denied.
+      </p>
+    );
+  }
+  if (usages.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed bg-muted/30 px-4 py-5 text-center">
+        <p className="text-sm font-medium">No references</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          No identity profile, source policy, or other transform references
+          this transform. Likely safe to archive.
+        </p>
+      </div>
+    );
+  }
+  return (
+    <ul className="space-y-2">
+      {usages.map((u, idx) => (
+        <EditorUsageRow key={idx} entry={u} />
+      ))}
+    </ul>
+  );
+}
+
+function EditorUsageRow({ entry }: { entry: UsageEntry }) {
+  const Icon =
+    entry.kind === "identity-profile"
+      ? Users
+      : entry.kind === "source-policy"
+        ? Database
+        : GitBranch;
+  return (
+    <li className="flex items-center gap-3 rounded-md border bg-card p-3">
+      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">{entry.containerName}</p>
+        <p className="truncate font-mono text-xs text-muted-foreground">
+          <ArrowRight className="-mt-0.5 mr-1 inline h-3 w-3" aria-hidden />
+          {entry.attributePath}
+        </p>
+      </div>
+    </li>
+  );
+}
+
+// ── Depends-on section ───────────────────────────────────────────────
+
+function EditorDependsOnList({
+  currentId,
+  currentName,
+  currentType,
+  deps,
+  transformsByName,
+  onNavigate,
+}: {
+  currentId: string;
+  currentName: string;
+  currentType: string;
+  deps: ReadonlyArray<string>;
+  transformsByName: ReadonlyMap<string, SelectableTransform>;
+  onNavigate: (targetId: string) => void;
+}) {
+  if (deps.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No reference to another transform — this one is self-contained.
+      </p>
+    );
+  }
+  const current: SelectableTransform = { id: currentId, name: currentName, type: currentType };
+  if (deps.length <= DEPENDS_ON_GRAPH_THRESHOLD) {
+    return (
+      <DependsOnGraph
+        current={current}
+        deps={deps}
+        transformsByName={transformsByName}
+        onNavigate={onNavigate}
+      />
+    );
+  }
+  return (
+    <ul className="space-y-1.5">
+      {deps.map((refId) => {
+        const target = transformsByName.get(refId);
+        return <EditorDependsOnRow key={refId} refId={refId} target={target} onNavigate={onNavigate} />;
+      })}
+    </ul>
+  );
+}
+
+function EditorDependsOnRow({
+  refId,
+  target,
+  onNavigate,
+}: {
+  refId: string;
+  target: SelectableTransform | undefined;
+  onNavigate: (targetId: string) => void;
+}) {
+  if (!target) {
+    return (
+      <li className="flex items-center gap-2 rounded-md border border-rose-200 bg-rose-50 p-2 text-xs dark:border-rose-900/40 dark:bg-rose-950/30">
+        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-700 dark:text-rose-300" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-rose-900 dark:text-rose-100">{refId}</p>
+          <p className="text-[10px] text-rose-700 dark:text-rose-300">
+            Reference missing — broken link
+          </p>
+        </div>
+      </li>
+    );
+  }
+  const group = groupFor(target.type);
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onNavigate(target.id)}
+        className="flex w-full items-center gap-2 rounded-md border bg-card p-2 text-left transition-colors hover:bg-accent/40"
+      >
+        <GitBranch className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-mono text-xs font-medium">{target.name}</p>
+          <p className="truncate text-[10px] text-muted-foreground">
+            {target.type} · {group.label}
+          </p>
+        </div>
+        <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+      </button>
+    </li>
+  );
+}
+
+// ── collectDirectReferenceIds ────────────────────────────────────────
+// Walk a transform's attributes tree and collect every direct `reference`
+// target id (1-hop only, deduplicated).
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function collectDirectReferenceIds(attrs: unknown): Set<string> {
+  const out = new Set<string>();
+  function walk(node: unknown): void {
+    if (Array.isArray(node)) {
+      for (const v of node) walk(v);
+      return;
+    }
+    if (!isRecord(node)) return;
+    if (node.type === "reference" && isRecord(node.attributes)) {
+      const id = node.attributes.id;
+      if (typeof id === "string") out.add(id);
+    }
+    for (const v of Object.values(node)) walk(v);
+  }
+  walk(attrs);
+  return out;
+}

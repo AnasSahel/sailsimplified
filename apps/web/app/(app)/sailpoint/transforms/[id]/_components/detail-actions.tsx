@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { CopyPlus, Edit3 } from "lucide-react";
+import { CopyPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -29,7 +28,7 @@ export function TransformDetailActions({
   tenantTransformNames,
   jsonString,
 }: {
-  transform: { id: string; name: string; internal: boolean };
+  transform: { id: string; name: string };
   tenantTransformNames: ReadonlyArray<string>;
   jsonString: string;
 }) {
@@ -73,16 +72,6 @@ export function TransformDetailActions({
         <CopyPlus className="h-3.5 w-3.5" />
         Duplicate
       </Button>
-      {!transform.internal && (
-        <Button asChild size="sm" className="gap-1.5">
-          <Link
-            href={`/sailpoint/transforms/${encodeURIComponent(transform.id)}/edit`}
-          >
-            <Edit3 className="h-3.5 w-3.5" />
-            Edit
-          </Link>
-        </Button>
-      )}
 
       <DuplicateTransformDialog
         transform={{ id: transform.id, name: transform.name }}

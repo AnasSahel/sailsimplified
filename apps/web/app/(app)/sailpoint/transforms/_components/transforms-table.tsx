@@ -129,13 +129,8 @@ export function TransformsTable({
   );
 
   const selectHref = React.useCallback(
-    (id: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("selected", id);
-      const qs = params.toString();
-      return qs ? `${pathname}?${qs}` : pathname;
-    },
-    [pathname, searchParams],
+    (id: string) => `/sailpoint/transforms/${encodeURIComponent(id)}`,
+    [],
   );
 
   // Selection — kept local; mirrors the DataTable's single-page contract

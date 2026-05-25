@@ -2,8 +2,6 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-
 import type { UsageEntry } from "@simplified-identity/transforms";
 
 import { TypeIcon, TypePill } from "../../../_components/type-pill";
@@ -37,17 +35,9 @@ export function TransformsGrid({
    * badge next to the name. Keyed by `transform.id`, omitted when zero. */
   issuesByTransformId?: ReadonlyMap<string, IssuesBadgeCounts>;
 }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
   const selectHref = React.useCallback(
-    (id: string) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("selected", id);
-      const qs = params.toString();
-      return qs ? `${pathname}?${qs}` : pathname;
-    },
-    [pathname, searchParams],
+    (id: string) => `/sailpoint/transforms/${encodeURIComponent(id)}`,
+    [],
   );
 
   if (transforms.length === 0) {
@@ -68,7 +58,6 @@ export function TransformsGrid({
           <div className="flex items-start justify-between gap-2">
             <Link
               href={selectHref(t.id)}
-              scroll={false}
               className="flex min-w-0 items-center gap-2 hover:underline"
             >
               <TypeIcon type={t.type} />
