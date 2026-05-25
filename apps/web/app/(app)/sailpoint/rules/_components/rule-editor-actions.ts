@@ -40,10 +40,6 @@ export type DeleteRuleActionResult =
   | { ok: true }
   | { ok: false; error: string };
 
-export type ValidateActionResult =
-  | { ok: true; state: "OK" | "ERROR"; details: RuleValidationDetail[] }
-  | { ok: false; error: string };
-
 /** Editable fields the drawer editor owns. */
 export type RuleEdits = {
   name: string;
@@ -61,10 +57,12 @@ function fmtError(status: number, message: string): string {
 }
 
 /**
- * Run the server-side BeanShell validation gate. Connector rules execute
- * in provisioning, so an unvalidated save is a production hazard (epic
- * #350). The client also validates before enabling Save, but we re-check
- * here so the gate can't be bypassed.
+ * Server-side ISC backstop on save. Connector rules execute in provisioning,
+ * so we still ask ISC's `/connector-rules/validate` what it thinks before
+ * persisting (#350) — even though the client now gates Save on the local
+ * BeanShell lexer (#389) and ISC's check is shallow enough to accept orphan
+ * tokens. Anything ISC *does* catch is the kind of error the lexer doesn't
+ * cover, so it's a useful filter — but it is NOT the gate, just a backstop.
  */
 async function gateValidate(
   userId: string,
@@ -95,25 +93,6 @@ async function gateValidate(
     };
   }
   return { ok: true };
-}
-
-/**
- * Validate a script without persisting. Drives the editor's "Validate"
- * button and the Save-enabled gate.
- */
-export async function validateRuleAction(
-  script: string,
-  version?: string | null,
-): Promise<ValidateActionResult> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) return { ok: false, error: "Not signed in." };
-
-  const v = await validateConnectorRule(session.user.id, {
-    version: version ?? DEFAULT_VERSION,
-    script,
-  });
-  if (!v.ok) return { ok: false, error: fmtError(v.status, v.message) };
-  return { ok: true, state: v.state, details: v.details };
 }
 
 export async function createRuleAction(

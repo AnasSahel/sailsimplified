@@ -2,45 +2,35 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
+  analyzeSource,
   getRuleCatalogEntry,
   KNOWN_RULE_TYPES,
+  runSourceLint,
 } from "@simplified-identity/rules";
-import type { RuleValidationDetail } from "@simplified-identity/sailpoint-client";
 
 import { RuleCodeEditor } from "./rule-code-editor";
-import {
-  createRuleAction,
-  updateRuleAction,
-  validateRuleAction,
-} from "./rule-editor-actions";
+import { createRuleAction, updateRuleAction } from "./rule-editor-actions";
 
 /**
- * Edit / create form for a connector rule (#352 editor + #353 new), shown
- * inside the drawer. The BeanShell script is the primary field; name and
- * description are editable too. `type` is editable only when creating
- * (changing an existing rule's type is not a thing we support).
+ * Edit / create form for a connector rule (#352 editor + #353 new).
  *
- * Save-before-validate is impossible by construction: Save stays disabled
- * until the *current* script has passed `validateRuleAction`. Any edit to
- * the script clears the validated marker, re-disabling Save until the user
- * re-validates. The server action re-validates as a backstop.
+ * Save gate (#389): there is no manual "Validate" button. The local
+ * BeanShell lexer (`analyzeSource` + `runSourceLint`, shipped in #359)
+ * runs on every keystroke and gates Save on `errorCount === 0`. ISC's
+ * `/connector-rules/validate` is too shallow to act as a gate — it accepts
+ * orphan tokens and unbalanced gibberish (see GOTCHA in
+ * `packages/sailpoint-client/src/rules-api.ts`). The server action still
+ * calls ISC as a best-effort backstop on save; whatever it catches
+ * surfaces via the generic `error` field.
+ *
+ * No pre-save check can fully validate a connector rule: rules only run
+ * at execution time in the tenant. The note below the editor states this
+ * explicitly so the lint pass isn't mistaken for proof-of-correctness.
  */
-
-type ValidationState =
-  | { kind: "idle" }
-  | { kind: "validating" }
-  | { kind: "ok" }
-  | { kind: "error"; details: RuleValidationDetail[] };
 
 export type RuleEditorMode =
   | { kind: "new" }
@@ -92,20 +82,24 @@ export function RuleEditor({
   const [description, setDescription] = React.useState(initial.description);
   const [script, setScript] = React.useState(initial.script);
 
-  const [validation, setValidation] = React.useState<ValidationState>({
-    kind: "idle",
-  });
-  // The exact script string that last passed validation. Save is gated on
-  // `validatedScript === script` so any edit re-arms the gate.
-  const [validatedScript, setValidatedScript] = React.useState<string | null>(
-    null,
-  );
   const [pending, startTransition] = React.useTransition();
   const [error, setError] = React.useState<string | null>(null);
   const [conflict, setConflict] = React.useState(false);
 
   const version = mode.kind === "edit" ? (mode.version ?? "1.0") : "1.0";
   const expectedModified = mode.kind === "edit" ? mode.modified : null;
+
+  // Local syntax gate (#389): every keystroke is re-lexed and re-linted by
+  // `analyzeSource` + `runSourceLint`. Pure + memoised on `script` — the
+  // analysis is the only honest pre-save filter, since ISC's validate is
+  // shallow (see header docblock). The ruleId is only used to tag emitted
+  // issues; the lexer/detectors don't depend on it, so a synthetic id for
+  // new rules is fine.
+  const lintRuleId = mode.kind === "edit" ? mode.id : "__new__";
+  const lintResult = React.useMemo(
+    () => runSourceLint(lintRuleId, analyzeSource(script)),
+    [lintRuleId, script],
+  );
 
   const dirty =
     name !== initial.name ||
@@ -128,33 +122,12 @@ export function RuleEditor({
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [dirty]);
 
-  const scriptValidated = validatedScript === script && script.trim() !== "";
   const canSave =
     !pending &&
     name.trim() !== "" &&
     (isNew ? type.trim() !== "" : true) &&
     (isNew ? script.trim() !== "" : dirty) &&
-    scriptValidated;
-
-  function runValidate() {
-    setError(null);
-    setValidation({ kind: "validating" });
-    startTransition(async () => {
-      const res = await validateRuleAction(script, version);
-      if (!res.ok) {
-        setValidation({ kind: "idle" });
-        setError(res.error);
-        return;
-      }
-      if (res.state === "OK") {
-        setValidation({ kind: "ok" });
-        setValidatedScript(script);
-      } else {
-        setValidation({ kind: "error", details: res.details });
-        setValidatedScript(null);
-      }
-    });
-  }
+    lintResult.errorCount === 0;
 
   function save(force = false) {
     setError(null);
@@ -184,10 +157,10 @@ export function RuleEditor({
         setError(res.error);
         return;
       }
-      if (res.validation) {
-        setValidation({ kind: "error", details: res.validation });
-        setValidatedScript(null);
-      }
+      // ISC's server-side validate (`gateValidate` backstop) can still surface
+      // findings the local lexer missed; the formatted summary in `res.error`
+      // is the user-facing channel — we no longer carry a separate validation
+      // state in the UI (#389).
       setError(res.error);
     });
   }
@@ -248,42 +221,29 @@ export function RuleEditor({
 
         {/* Source code */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="si-micro uppercase tracking-wider text-muted-foreground">
-              Source code (BeanShell)
-            </h3>
-            <ValidationBadge state={validation} dirtySinceValidate={!scriptValidated} />
-          </div>
+          <h3 className="si-micro uppercase tracking-wider text-muted-foreground">
+            Source code (BeanShell)
+          </h3>
           <RuleCodeEditor
             value={script}
             onChange={setScript}
-            hasErrors={validation.kind === "error"}
+            hasErrors={lintResult.errorCount > 0}
             initialCaretLine={mode.kind === "edit" ? mode.initialCaretLine : undefined}
           />
-          {validation.kind === "error" ? (
-            <ul className="space-y-1 rounded-md border border-rose-200 bg-rose-50/60 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/20">
-              {validation.details.length === 0 ? (
-                <li className="si-caption text-rose-700 dark:text-rose-300">
-                  The script failed server-side validation.
-                </li>
-              ) : (
-                validation.details.map((d, i) => (
-                  <li
-                    key={i}
-                    className="si-caption text-rose-700 dark:text-rose-300"
-                  >
-                    {d.line ? (
-                      <span className="font-mono font-medium">Line {d.line}: </span>
-                    ) : null}
-                    {d.message}
-                  </li>
-                ))
-              )}
-            </ul>
-          ) : null}
+          {/*
+            Findings themselves are displayed by `RuleIssuesBanner` on the page,
+            which lints the same script live (#363). Showing them again here would
+            duplicate the surface. The note below frames what the pre-save gate
+            actually proves — and what it can't.
+          */}
+          <p className="si-caption text-muted-foreground">
+            Save is gated on local BeanShell syntax checks. ISC does not pre-validate
+            connector rules — they only really run at execution time in your tenant.
+            Test in your tenant after saving.
+          </p>
         </div>
 
-        {error && validation.kind !== "error" ? (
+        {error ? (
           <div className="flex items-start gap-2 rounded-md border border-rose-200 bg-rose-50/60 px-3 py-2 dark:border-rose-900/60 dark:bg-rose-950/20">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" aria-hidden />
             <p className="si-caption text-rose-700 dark:text-rose-300">{error}</p>
@@ -296,39 +256,24 @@ export function RuleEditor({
         <Button variant="ghost" size="sm" onClick={onClose} disabled={pending}>
           Cancel
         </Button>
-        <div className="flex items-center gap-2">
+        {conflict ? (
           <Button
-            variant="outline"
             size="sm"
-            onClick={runValidate}
-            disabled={pending || script.trim() === ""}
+            onClick={() => save(true)}
+            disabled={pending}
+            className="bg-amber-600 text-white hover:bg-amber-700"
           >
-            {validation.kind === "validating" ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-            )}
-            Validate
+            {pending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+            Overwrite
           </Button>
-          {conflict ? (
-            <Button
-              size="sm"
-              onClick={() => save(true)}
-              disabled={pending}
-              className="bg-amber-600 text-white hover:bg-amber-700"
-            >
-              {pending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              Overwrite
-            </Button>
-          ) : (
-            <Button size="sm" onClick={() => save(false)} disabled={!canSave}>
-              {pending ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : null}
-              {isNew ? "Create rule" : "Save"}
-            </Button>
-          )}
-        </div>
+        ) : (
+          <Button size="sm" onClick={() => save(false)} disabled={!canSave}>
+            {pending ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : null}
+            {isNew ? "Create rule" : "Save"}
+          </Button>
+        )}
       </footer>
     </div>
   );
@@ -348,31 +293,5 @@ function Field({
       </label>
       {children}
     </div>
-  );
-}
-
-function ValidationBadge({
-  state,
-  dirtySinceValidate,
-}: {
-  state: ValidationState;
-  dirtySinceValidate: boolean;
-}) {
-  if (state.kind === "ok" && !dirtySinceValidate) {
-    return (
-      <span className="inline-flex items-center gap-1 si-caption text-emerald-600 dark:text-emerald-400">
-        <CheckCircle2 className="h-3.5 w-3.5" /> Validated
-      </span>
-    );
-  }
-  if (state.kind === "error") {
-    return (
-      <span className="inline-flex items-center gap-1 si-caption text-rose-600 dark:text-rose-400">
-        <AlertTriangle className="h-3.5 w-3.5" /> Invalid
-      </span>
-    );
-  }
-  return (
-    <span className="si-caption text-muted-foreground/70">Not yet validated</span>
   );
 }
