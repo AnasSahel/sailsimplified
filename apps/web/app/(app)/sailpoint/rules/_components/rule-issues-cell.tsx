@@ -1,8 +1,6 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 
 import { Pill } from "@/components/ui/pill";
 import {
@@ -20,9 +18,8 @@ import type { RuleIssueCount } from "./source-issues";
  *   - warnings only → `warning` (amber)
  *   - clean (absent from the counts map) → muted `—`
  *
- * Clicking opens the rule's drawer (`?selected=<id>`), where the live banner
- * (#363) lists each finding with its fix-in-editor link — so the list signal
- * and the per-rule detail share one entry point.
+ * Clicking links to the rule detail page where findings are listed with
+ * fix-in-editor links — so the list signal and detail share one entry point.
  */
 export function RuleIssuesCell({
   ruleId,
@@ -33,14 +30,7 @@ export function RuleIssuesCell({
   count: RuleIssueCount | undefined;
   className?: string;
 }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const href = React.useMemo(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("selected", ruleId);
-    return `${pathname}?${params.toString()}`;
-  }, [pathname, searchParams, ruleId]);
+  const href = `/sailpoint/rules/${encodeURIComponent(ruleId)}`;
 
   if (!count || (count.errorCount === 0 && count.warningCount === 0)) {
     return (
@@ -63,7 +53,6 @@ export function RuleIssuesCell({
         <TooltipTrigger asChild>
           <Link
             href={href}
-            scroll={false}
             onClick={(e) => e.stopPropagation()}
             className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={`${tooltipText} — open rule`}

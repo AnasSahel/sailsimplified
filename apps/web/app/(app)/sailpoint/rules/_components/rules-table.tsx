@@ -30,7 +30,7 @@ import type { RuleRow } from "./types";
  * URL pattern). Read-only: no selection / bulk / row actions in v1.
  *
  * Columns: Name (+ type glyph), Type pill, Attached sources (color-coded),
- * Last modified. Clicking a row opens the rule drawer via `?selected=<id>`.
+ * Last modified. Clicking a row navigates to the rule detail page.
  */
 const URL_GROUP_PREFIX = "groups.";
 

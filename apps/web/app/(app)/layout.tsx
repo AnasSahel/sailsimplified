@@ -51,18 +51,7 @@ export default async function AppLayout({
         counts={counts}
       />
       <SidebarInset>
-        {/*
-          Workspace-drawer slot. Pages can render a fixed-position drawer that
-          should "push" the topbar + content to the left rather than overlay
-          them. They expose a CSS variable on `:root` (e.g.
-          `--workspace-drawer-width: 480px`) when their drawer is open, and
-          this wrapper consumes it as `padding-right`. Routes that don't set
-          the variable default to `0` → no effect, no surprise.
-        */}
-        <div
-          className="flex flex-1 flex-col transition-[padding-right] duration-300 ease-out"
-          style={{ paddingRight: "var(--workspace-drawer-width, 0px)" }}
-        >
+        <div className="flex flex-1 flex-col">
           <Topbar
             tenant={process.env.SAILPOINT_TENANT ?? null}
             name={session.user.name ?? null}

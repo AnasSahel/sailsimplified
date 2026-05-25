@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { permanentRedirect, redirect } from "next/navigation";
 import { Search } from "lucide-react";
 
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -111,12 +111,12 @@ export default async function RulesPage({
 
   const params = await searchParams;
 
-  // Redirect deprecated drawer query params to their new page routes.
+  // Permanent redirects for deprecated drawer query params.
   if (params.selected) {
-    redirect(`/sailpoint/rules/${encodeURIComponent(params.selected)}`);
+    permanentRedirect(`/sailpoint/rules/${encodeURIComponent(params.selected)}`);
   }
   if (params.new === "1") {
-    redirect("/sailpoint/rules/new");
+    permanentRedirect("/sailpoint/rules/new");
   }
 
   const q = (params.q ?? "").trim();

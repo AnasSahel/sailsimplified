@@ -1,8 +1,6 @@
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 
 import { Pill } from "@/components/ui/pill";
 import {
@@ -21,8 +19,7 @@ import type { RuleUsageEntry } from "@simplified-identity/rules";
  *   - `attached === 0`    → `warning` (amber)   — unattached / dead code
  *   - `attached === undefined` → plain `—`      — usages couldn't be computed
  *
- * Clicking opens the rule drawer (`?selected=<id>`), which carries the
- * full "Attached sources" panel. The tooltip names the attached sources.
+ * Clicking links to the rule detail page. The tooltip names the attached sources.
  */
 export function AttachedSourcesCell({
   attached,
@@ -36,14 +33,7 @@ export function AttachedSourcesCell({
   entries?: ReadonlyArray<RuleUsageEntry>;
   className?: string;
 }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const href = React.useMemo(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("selected", ruleId);
-    return `${pathname}?${params.toString()}`;
-  }, [pathname, searchParams, ruleId]);
+  const href = `/sailpoint/rules/${encodeURIComponent(ruleId)}`;
 
   if (attached === undefined) {
     return (
@@ -68,7 +58,6 @@ export function AttachedSourcesCell({
         <TooltipTrigger asChild>
           <Link
             href={href}
-            scroll={false}
             onClick={(e) => e.stopPropagation()}
             className="inline-flex rounded-md focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={tooltipText}

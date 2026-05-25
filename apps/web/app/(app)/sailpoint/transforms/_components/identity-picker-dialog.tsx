@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
  *
  * On select the parent receives the flattened `simulatedValues` plus
  * lightweight identity metadata; the loaded state lives in the parent
- * (`TestTab` in `transform-drawer.tsx`) so it persists across the
+ * (`TestTab` in `test-tab.tsx`) so it persists across the
  * Configuration / JSON / Tree tabs.
  */
 

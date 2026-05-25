@@ -12,7 +12,7 @@ import { highlightJson } from "../../../_components/json-view";
 /**
  * Vertical timeline of evaluator trace steps, shared between the
  * transforms editor (`transform-editor.tsx`) and the list-page Test run
- * tab (`transform-drawer.tsx`).
+ * tab (`test-tab.tsx`).
  *
  * Each step is collapsible: by default the row shows the type pill + a
  * compact `[input] → [output]` summary (current v1 view). Expanding via
