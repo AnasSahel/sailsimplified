@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useTrackEditorDirty } from "@/hooks/use-unsaved-changes-guard";
 import {
   analyzeSource,
   getRuleCatalogEntry,
@@ -110,6 +111,11 @@ export function RuleEditor({
   React.useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
+
+  // Publish dirty to the SPA-nav guard signal (#355) so tabs and the
+  // back-link can prompt on click. Module-level singleton; see
+  // `hooks/use-unsaved-changes-guard.ts`.
+  useTrackEditorDirty(dirty);
 
   // Unsaved-changes guard on hard navigation / tab close (#355).
   React.useEffect(() => {

@@ -9,27 +9,45 @@ import { cn } from "@/lib/utils";
  * Same width as `<PageShell>` (`max-w-1400`). See DESIGN.md §2.2.
  *
  * Layout:
- *   - back link
+ *   - back link (default `<Link>` from `back`, or custom via `backSlot`)
  *   - header (composed via `<DetailHeader>`)
  *   - optional stats strip
  *   - optional tabs
  *   - body
+ *
+ * Pass `backSlot` (any ReactNode) to override the default back-link
+ * rendering — used by edit pages to inject a guarded back-link that
+ * prompts on unsaved changes (see `useUnsavedChangesGuard`, #355).
+ * Either `back` or `backSlot` must be provided; if both are present,
+ * `backSlot` wins.
  */
 export function DetailShell({
   back,
+  backSlot,
   header,
   stats,
   tabs,
   children,
   className,
 }: {
-  back: { href: string; label: string };
+  back?: { href: string; label: string };
+  backSlot?: React.ReactNode;
   header: React.ReactNode;
   stats?: React.ReactNode;
   tabs?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
 }) {
+  const backNode =
+    backSlot ??
+    (back ? (
+      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
+        <Link href={back.href}>
+          <ArrowLeft />
+          {back.label}
+        </Link>
+      </Button>
+    ) : null);
   return (
     <div
       className={cn(
@@ -37,12 +55,7 @@ export function DetailShell({
         className,
       )}
     >
-      <Button variant="ghost" size="sm" asChild className="-ml-2 mb-3">
-        <Link href={back.href}>
-          <ArrowLeft />
-          {back.label}
-        </Link>
-      </Button>
+      {backNode}
       {header}
       {stats ? <div className="pt-4">{stats}</div> : null}
       {tabs ? <div className="pt-4">{tabs}</div> : null}

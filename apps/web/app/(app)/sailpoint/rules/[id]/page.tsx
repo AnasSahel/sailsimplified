@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 
 import { Pill } from "@/components/ui/pill";
 import { StateView } from "@/components/ui/state-view";
-import { Tabs } from "@/components/ui/tabs";
 import { auth } from "@/lib/auth";
 import { sailpointFetch } from "@/lib/sailpoint/client";
 import {
@@ -25,6 +24,8 @@ import {
 import { AttachedSourcesPanel } from "../_components/attached-sources-panel";
 import { RuleTypeIcon } from "../_components/rule-type-icon";
 import type { RuleRow } from "../_components/types";
+import { GuardedBackLink } from "./_components/guarded-back-link";
+import { GuardedTabsNav } from "./_components/guarded-tabs-nav";
 import {
   RuleOverviewClient,
   RulePageActions,
@@ -181,7 +182,9 @@ export default async function RuleDetailPage({
 
   return (
     <DetailShell
-      back={{ href: "/sailpoint/rules", label: "All rules" }}
+      backSlot={
+        <GuardedBackLink href="/sailpoint/rules" label="All rules" />
+      }
       header={
         <DetailHeader
           title={
@@ -228,7 +231,7 @@ export default async function RuleDetailPage({
         />
       }
       tabs={
-        <Tabs
+        <GuardedTabsNav
           size="md"
           value={tab}
           hrefFor={(k) =>
