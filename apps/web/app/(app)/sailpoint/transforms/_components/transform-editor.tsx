@@ -81,6 +81,10 @@ import {
 } from "./codemirror-extensions";
 import { InsertTransformDialog } from "./insert-dialog";
 import { DeleteTransformDialog } from "./delete-dialog";
+import {
+  CodeFrame,
+  formatByteSize,
+} from "../../../_components/code-frame";
 import { RecipeView } from "./recipe-view";
 import { TypePicker } from "./type-picker";
 import { TypePill } from "../../../_components/type-pill";
@@ -470,6 +474,8 @@ export function TransformEditor({
                   setError={setError}
                   error={error}
                   extensions={extensions}
+                  localValidation={localValidation}
+                  filename={derived.name || undefined}
                 />
               ) : recipe ? (
                 <RecipeView
@@ -1312,6 +1318,8 @@ function RawJsonEditor({
   setError,
   error,
   extensions,
+  localValidation,
+  filename,
 }: {
   editorRef: React.MutableRefObject<ReactCodeMirrorRef | null>;
   value: string;
@@ -1320,7 +1328,21 @@ function RawJsonEditor({
   setError: (v: string | null) => void;
   error: string | null;
   extensions: Extension[];
+  localValidation: { ok: true } | { ok: false; error: string };
+  filename?: string;
 }) {
+  const lineCount = React.useMemo(
+    () => (value === "" ? 0 : value.split("\n").length),
+    [value],
+  );
+  const byteLabel = React.useMemo(() => formatByteSize(value), [value]);
+
+  const status = error
+    ? { ok: false, message: error }
+    : localValidation.ok
+      ? { ok: true, message: "Valid JSON" }
+      : { ok: false, message: localValidation.error };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-end">
@@ -1338,7 +1360,16 @@ function RawJsonEditor({
           </kbd>
         </Button>
       </div>
-      <div className="overflow-hidden rounded-md border bg-card">
+      <CodeFrame
+        language="json"
+        filename={filename}
+        status={status}
+        showCopy
+        showMeta
+        lineCount={lineCount}
+        byteLabel={byteLabel}
+        value={value}
+      >
         <CodeMirror
           ref={editorRef}
           value={value}
@@ -1355,9 +1386,9 @@ function RawJsonEditor({
             bracketMatching: true,
             closeBrackets: true,
           }}
-          theme="light"
+          theme="dark"
         />
-      </div>
+      </CodeFrame>
     </div>
   );
 }
