@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ChevronLeft,
+  Code2,
   CopyPlus,
+  FileText,
+  Layers,
   Loader2,
   Sparkles,
   Trash2,
@@ -389,14 +392,21 @@ export function RuleDetailV3({
         {/* Right — sidebar cards. PR 1 inlines existing data; #405-#409 will
             split into proper individual cards with their own polish. */}
         <aside className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
-          <SidebarCard title="Type & execution">
+          <SidebarCard
+            title="Type & execution"
+            icon={<Layers className="h-3 w-3" />}
+          >
             <KV label="Type" value={catalog.displayLabel} />
             <KV label="Kind" value="Connector" />
             <KV label="Connector" value={groupLabel} />
             <KV label="Language" value="BeanShell" />
             <KV
               label="Identifier"
-              value={<span className="font-mono text-muted-foreground/70">{rule.type}</span>}
+              value={
+                <span className="font-mono text-muted-foreground/70">
+                  {rule.type}
+                </span>
+              }
             />
           </SidebarCard>
 
@@ -406,7 +416,7 @@ export function RuleDetailV3({
             </p>
           </SidebarCard>
 
-          <SidebarCard title="Signature">
+          <SidebarCard title="Signature" icon={<Code2 className="h-3 w-3" />}>
             {signatureInput.length === 0 && !signatureOutput ? (
               <p className="si-caption text-muted-foreground/70">
                 No signature declared for this rule.
@@ -491,7 +501,10 @@ export function RuleDetailV3({
             )}
           </SidebarCard>
 
-          <SidebarCard title="Description">
+          <SidebarCard
+            title="Description"
+            icon={<FileText className="h-3 w-3" />}
+          >
             {rule.description ? (
               <p className="si-body text-muted-foreground">{rule.description}</p>
             ) : (
@@ -549,14 +562,22 @@ export function RuleDetailV3({
 
 function SidebarCard({
   title,
+  icon,
   children,
 }: {
   title: string;
+  /**
+   * Optional lucide icon (or any node) rendered in the section header.
+   * Sized to match `si-micro` text; mockup uses a small monochrome glyph
+   * next to the uppercase label.
+   */
+  icon?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="rounded-lg border bg-card p-4">
-      <h2 className="si-micro mb-3 uppercase tracking-wider text-muted-foreground">
+      <h2 className="si-micro mb-3 inline-flex items-center gap-1.5 uppercase tracking-wider text-muted-foreground">
+        {icon ? <span aria-hidden className="text-muted-foreground/70">{icon}</span> : null}
         {title}
       </h2>
       {children}
