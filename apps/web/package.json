@@ -20,6 +20,7 @@
     "@codemirror/view": "^6.42.1",
     "@dagrejs/dagre": "^3.0.0",
     "@lezer/common": "^1.5.2",
+    "@lezer/highlight": "^1.2.3",
     "@libsql/client": "^0.17.3",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-collapsible": "^1.1.12",

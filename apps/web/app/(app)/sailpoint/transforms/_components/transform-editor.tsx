@@ -79,6 +79,7 @@ import {
   transformAutocomplete,
   transformTypeHover,
 } from "./codemirror-extensions";
+import { tokyoNightCodeMirror } from "./codemirror-tokyo-night-theme";
 import { InsertTransformDialog } from "./insert-dialog";
 import { DeleteTransformDialog } from "./delete-dialog";
 import {
@@ -360,6 +361,7 @@ export function TransformEditor({
 
   const extensions = React.useMemo(
     () => [
+      tokyoNightCodeMirror,
       jsonLang(),
       transformAutocomplete(
         tenantTransforms.map((t) => ({
@@ -1386,7 +1388,8 @@ function RawJsonEditor({
             bracketMatching: true,
             closeBrackets: true,
           }}
-          theme="dark"
+          // Theme is provided by `tokyoNightCodeMirror` in the extensions
+          // array — match the surrounding CodeFrame surface.
         />
       </CodeFrame>
     </div>
