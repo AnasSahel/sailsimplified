@@ -21,7 +21,7 @@ function findScrollParent(el: HTMLElement): HTMLElement | null {
  * Editable BeanShell editor (#352) — the v1 highlight primitive made
  * editable, per the epic #350 decision (no new editor framework). A
  * transparent `<textarea>` is layered over a syntax-highlighted `<pre>`
- * that paints the same tokens as the read-only `RuleCodePanel`. The
+ * that paints the same tokens as the shared `CodeViewer` (#414). The
  * textarea owns the caret + selection (visible) while its glyphs are
  * `color: transparent`, so the user sees the highlighted layer behind.
  *

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { Trace } from "@simplified-identity/transforms";
 
 import { TypePill } from "../../../_components/type-pill";
-import { highlightJson } from "../../../_components/json-view";
+import { CodeViewer } from "../../../_components/code-viewer";
 
 /**
  * Vertical timeline of evaluator trace steps, shared between the
@@ -195,24 +195,23 @@ function IOBox({
 }
 
 /**
- * Expanded view — pretty-printed `attrs` of the step with the same JSON
- * syntax colouring as the Definition `JsonPanel` (shared `highlightJson`).
- * Lets the user inspect "what arguments did this node use" without
- * jumping back to the full transform JSON.
+ * Expanded view — pretty-printed `attrs` of the step rendered via the
+ * shared `CodeViewer` (#414, language="json"). Lets the user inspect "what
+ * arguments did this node use" without jumping back to the full transform
+ * JSON.
  */
 function AttrsPanel({ attrs }: { attrs: Record<string, unknown> }) {
-  const html = React.useMemo(
-    () => highlightJson(JSON.stringify(attrs, null, 2)),
-    [attrs],
-  );
+  const value = React.useMemo(() => JSON.stringify(attrs, null, 2), [attrs]);
   return (
     <div className="mt-2 border-t pt-2">
       <div className="pb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         Attributes
       </div>
-      <pre
-        className="overflow-x-auto rounded bg-neutral-900 p-2 font-mono text-[11px] leading-relaxed text-neutral-200"
-        dangerouslySetInnerHTML={{ __html: html }}
+      <CodeViewer
+        value={value}
+        language="json"
+        filename="attrs.json"
+        showMeta={false}
       />
     </div>
   );

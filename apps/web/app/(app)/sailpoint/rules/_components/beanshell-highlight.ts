@@ -1,15 +1,11 @@
 /**
  * Escape-safe BeanShell / Java syntax highlighter — shared by the
- * read-only `RuleCodePanel` (consult) and the editable `RuleCodeEditor`
- * (authoring, #352). Extracted from the v1 panel so the editor can paint
- * the exact same tokens behind its transparent textarea overlay (the epic
- * #350 decision: "make the v1 highlight primitive editable", no new editor
- * framework).
- *
- * Tokenizes in one pass so a keyword inside a string or comment is never
- * re-highlighted. Token order matters: comments and strings are matched
- * before identifiers. Colours are tuned for a dark `bg-neutral-900` block,
- * same palette family as `highlightJson`.
+ * editable `RuleCodeEditor` (authoring, #352) and the shared `CodeViewer`
+ * (#414) for read-only displays. Tokenizes in one pass so a keyword
+ * inside a string or comment is never re-highlighted. Token order
+ * matters: comments and strings are matched before identifiers. Colours
+ * are tuned for a dark `bg-neutral-900` block, same palette family as
+ * `highlightJson`.
  */
 
 const JAVA_KEYWORDS = new Set([
