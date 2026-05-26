@@ -546,15 +546,42 @@ export function RuleDetailV3({
       </div>
 
       {/* ── AI Explain drawer ───────────────────────────────────────────── */}
-      {/* PR 1 mounts the existing RuleExplainPanel inside a drawer overlay;
-          #410 refines the drawer chrome (size, transitions, copy). */}
+      {/* The header `Explain with AI` button (#403) opens a right-side
+          overlay; the streamed explanation is rendered inline. Drawer chrome
+          sized for prose readability (#410). Modal: clicks outside dismiss;
+          the page underneath stays interactive only via Esc / ✕. */}
       <Drawer
         open={aiOpen}
         onOpenChange={setAiOpen}
-        size="md"
+        size="lg"
         title="Explain with AI"
-        description="Plain-language AI explanation of this connector rule."
-        header={<DrawerHeader title="Explain with AI" onClose={() => setAiOpen(false)} />}
+        description={`Plain-language AI explanation of ${rule.name}.`}
+        header={
+          <DrawerHeader
+            title={
+              <span className="inline-flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-accent" aria-hidden />
+                Explain with AI
+              </span>
+            }
+            titleBadge={
+              <Pill tone="accent" shape="square">
+                {catalog.displayLabel}
+              </Pill>
+            }
+            meta={[
+              {
+                emphasis: true,
+                label: (
+                  <span className="font-mono truncate" title={rule.name}>
+                    {rule.name}
+                  </span>
+                ),
+              },
+            ]}
+            onClose={() => setAiOpen(false)}
+          />
+        }
       >
         <RuleExplainPanel
           ruleType={rule.type}
