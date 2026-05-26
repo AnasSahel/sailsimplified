@@ -10,6 +10,7 @@ import {
   CopyPlus,
   FileText,
   Layers,
+  Link2,
   Loader2,
   Sparkles,
   Trash2,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/utils";
 import {
   analyzeSource,
   getRuleCatalogEntry,
+  humanizeAttachmentPath,
   ruleGroupFor,
   runSourceLint,
   type Issue,
@@ -75,11 +77,17 @@ type AttachmentRef = {
   sourceName: string;
   /**
    * Dotted path on the source object where the reference was found, e.g.
-   * `beforeProvisioningRule`, `connectorAttributes.nativeRules[0]`.
-   * Surfaced verbatim in the sidebar for v3; #408 can prettify it into a
-   * human-readable role label (e.g. `Aggregation`, `Provisioning before`).
+   * `beforeProvisioningRule`, `connectorAttributes.nativeRules[0]`. The UI
+   * surfaces a humanised role label via `humanizeAttachmentPath` (#408).
    */
   attachmentPath: string;
+  /**
+   * Friendly connector label for the source (e.g. `Flat File`, `Web
+   * Services`). Set by the page-level enrichment from the source's
+   * `connectorName` field; absent for sources where neither
+   * `connectorName` nor `connector` is set on the payload.
+   */
+  connectorName?: string;
 };
 
 export type RuleDetailV3Props = {
@@ -481,7 +489,10 @@ export function RuleDetailV3({
             )}
           </SidebarCard>
 
-          <SidebarCard title="Attached to">
+          <SidebarCard
+            title="Attached to"
+            icon={<Link2 className="h-3 w-3" />}
+          >
             {attachments.length === 0 ? (
               usagesAvailable ? (
                 <p className="si-caption text-muted-foreground/70">
@@ -493,17 +504,24 @@ export function RuleDetailV3({
                 </p>
               )
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {attachments.map((a) => (
                   <li
                     key={`${a.sourceId}:${a.attachmentPath}`}
-                    className="flex items-center justify-between gap-2"
+                    className="flex items-start justify-between gap-2"
                   >
-                    <span className="si-caption truncate text-foreground">
-                      {a.sourceName}
-                    </span>
+                    <div className="min-w-0">
+                      <div className="si-caption truncate font-medium text-foreground">
+                        {a.sourceName}
+                      </div>
+                      {a.connectorName ? (
+                        <div className="si-caption truncate text-muted-foreground">
+                          {a.connectorName}
+                        </div>
+                      ) : null}
+                    </div>
                     <Pill tone="neutral" shape="square">
-                      <span className="font-mono">{a.attachmentPath}</span>
+                      {humanizeAttachmentPath(a.attachmentPath)}
                     </Pill>
                   </li>
                 ))}

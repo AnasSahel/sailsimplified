@@ -106,6 +106,11 @@ export default async function RuleDetailPage({
   // breaking the page.
   const usagesAvailable = sourcesResult.ok;
   const usagesByRuleId = new Map<string, RuleUsageEntry[]>();
+  // Per-source connector type, used to enrich attachments for the ATTACHED TO
+  // sidebar card (#408). `connectorName` is the friendly connector label
+  // ("Flat File", "Web Services", …); falls back to `connector` (older
+  // payloads) and to `undefined` when neither is present.
+  const connectorBySourceId = new Map<string, string>();
 
   if (usagesAvailable) {
     const sourcesForUsages: SourceForUsages[] = await Promise.all(
@@ -120,13 +125,25 @@ export default async function RuleDetailPage({
         return { id: s.id, name: s.name, source: detail };
       }),
     );
+    for (const s of sourcesForUsages) {
+      const d = s.source;
+      const connectorName =
+        (typeof d.connectorName === "string" && d.connectorName) ||
+        (typeof d.connector === "string" && d.connector) ||
+        "";
+      if (connectorName) connectorBySourceId.set(s.id, connectorName);
+    }
     const allUsages = computeRuleUsages([rule], sourcesForUsages);
     for (const [k, v] of allUsages) {
       usagesByRuleId.set(k, v);
     }
   }
 
-  const attachments = usagesByRuleId.get(rule.id) ?? [];
+  const rawAttachments = usagesByRuleId.get(rule.id) ?? [];
+  const attachments = rawAttachments.map((a) => ({
+    ...a,
+    connectorName: connectorBySourceId.get(a.sourceId),
+  }));
   const tenantRuleNames = rulesListResult.ok
     ? rulesListResult.data.map((r) => r.name)
     : [];

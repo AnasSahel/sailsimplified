@@ -209,3 +209,60 @@ export function listSourceEndpoints(
     return { index, label: `#${index + 1} · ${name}` };
   });
 }
+
+// ── Attachment role labelling (#408) ─────────────────────────────────────────
+//
+// `computeRuleUsages` returns each attachment with a dotted `attachmentPath`
+// (`beforeProvisioningRule`, `connectorAttributes.nativeRules[0]`,
+// `connectorAttributes.connectionParameters[0].beforeRule`, …). The v3
+// ATTACHED TO card surfaces a short role label next to each source name —
+// "Before provisioning", "Native rule", "Before operation", etc. — so users
+// don't have to read the raw path.
+//
+// The mapping is shallow on purpose: we look at the **last meaningful
+// segment** of the path (array indices stripped), match against a curated
+// table of common SailPoint source rule slots, and fall back to a humanised
+// camelCase split for anything uncatalogued. Future-proof against ISC
+// renaming a slot — uncatalogued slots still render readably, they just lose
+// the curated wording.
+
+const ATTACHMENT_ROLE_LABELS: Record<string, string> = {
+  // Source-level rule slots (top-level on the source object)
+  beforeProvisioningRule: "Before provisioning",
+  afterProvisioningRule: "After provisioning",
+  correlationRule: "Correlation",
+  managerCorrelationRule: "Manager correlation",
+  accountSelectorRules: "Account selector",
+  credentialProviderRule: "Credential provider",
+
+  // Connector-attribute slots (inside `connectorAttributes`)
+  nativeRules: "Native rule",
+  buildMapRule: "Build map",
+  jdbcProvisionRule: "JDBC provision",
+  customizationRule: "Customization",
+
+  // Web Services connection-parameter slots (per-endpoint)
+  beforeRule: "Before operation",
+  afterRule: "After operation",
+};
+
+/**
+ * Convert an `attachmentPath` (dotted, with optional `[N]` array indices)
+ * into a short human role label for the ATTACHED TO card. Falls back to a
+ * humanised camelCase split for uncatalogued slot names.
+ */
+export function humanizeAttachmentPath(path: string): string {
+  if (!path) return "Attachment";
+  const noIndex = path.replace(/\[\d+\]/g, "");
+  const segments = noIndex.split(".").filter((s) => s.length > 0);
+  const last = segments[segments.length - 1] ?? "";
+  if (!last) return "Attachment";
+  const curated = ATTACHMENT_ROLE_LABELS[last];
+  if (curated) return curated;
+  // Humanise camelCase: insert spaces at lower→upper boundaries, capitalise
+  // the first letter. `nativeRules` → "Native rules".
+  const spaced = last
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
