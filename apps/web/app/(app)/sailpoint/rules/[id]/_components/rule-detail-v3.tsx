@@ -19,6 +19,7 @@ import {
   getRuleCatalogEntry,
   ruleGroupFor,
   runSourceLint,
+  type Issue,
   type SourceAnalysis,
 } from "@simplified-identity/rules";
 
@@ -92,6 +93,11 @@ export type RuleDetailV3Props = {
   usagesAvailable: boolean;
   /** Other tenant rule names — passed to the Duplicate dialog for collision detection. */
   tenantRuleNames: ReadonlyArray<string>;
+  /**
+   * 1-based line to place the caret on at mount, from the `?line=N` URL
+   * param. Used for fix-in-editor deep links from the lint surface (#363).
+   */
+  initialCaretLine?: number;
 };
 
 export function RuleDetailV3({
@@ -99,6 +105,7 @@ export function RuleDetailV3({
   attachments,
   usagesAvailable,
   tenantRuleNames,
+  initialCaretLine,
 }: RuleDetailV3Props) {
   const router = useRouter();
   const initialScript = rule.script;
@@ -109,6 +116,19 @@ export function RuleDetailV3({
   const [aiOpen, setAiOpen] = React.useState(false);
   const [duplicateOpen, setDuplicateOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  // Caret target — when the user clicks a lint finding in the status bar we
+  // re-mount the editor with a new `initialCaretLine` so the cursor jumps to
+  // the offending line. `editorKey` bumps on each jump to force the remount.
+  const [caretLine, setCaretLine] = React.useState<number | undefined>(
+    initialCaretLine,
+  );
+  const [editorKey, setEditorKey] = React.useState(0);
+
+  const jumpToLine = React.useCallback((line: number) => {
+    if (line <= 0) return;
+    setCaretLine(line);
+    setEditorKey((k) => k + 1);
+  }, []);
 
   const dirty = script !== initialScript;
 
@@ -286,6 +306,26 @@ export function RuleDetailV3({
             <Button
               size="sm"
               variant="outline"
+              onClick={() => setDuplicateOpen(true)}
+              className="gap-1.5"
+              disabled={pending}
+            >
+              <CopyPlus className="h-3.5 w-3.5" />
+              Duplicate
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setDeleteOpen(true)}
+              className="gap-1.5 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
+              disabled={pending}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={discard}
               disabled={!dirty || pending}
             >
@@ -332,28 +372,18 @@ export function RuleDetailV3({
         {/* Left — editor */}
         <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
           <RuleCodeEditor
+            key={editorKey}
             value={script}
             onChange={setScript}
             hasErrors={lintResult.errorCount > 0}
+            initialCaretLine={caretLine}
           />
-          {/* Provisional status bar — bottom; full polish lands in #404. */}
-          <div className="flex items-center justify-between border-t px-3 py-1.5">
-            <span
-              className={
-                lintResult.errorCount > 0
-                  ? "si-caption text-rose-600 dark:text-rose-400"
-                  : "si-caption text-muted-foreground"
-              }
-            >
-              {lintResult.errorCount > 0
-                ? `× ${lintResult.errorCount} issue${lintResult.errorCount === 1 ? "" : "s"}`
-                : "✓ Clean"}
-            </span>
-            <span className="si-caption font-mono text-muted-foreground/70">
-              {script.split("\n").length} lines · {new Blob([script]).size} B ·
-              BeanShell
-            </span>
-          </div>
+          <EditorStatusBar
+            script={script}
+            issues={lintResult.issues}
+            errorCount={lintResult.errorCount}
+            onJumpToLine={jumpToLine}
+          />
         </section>
 
         {/* Right — sidebar cards. PR 1 inlines existing data; #405-#409 will
@@ -471,28 +501,6 @@ export function RuleDetailV3({
             )}
           </SidebarCard>
 
-          {/* Lifecycle actions — kept accessible from the sidebar; the page
-              header has only the primary save flow. */}
-          <SidebarCard title="Lifecycle">
-            <div className="flex flex-col gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setDuplicateOpen(true)}
-                className="justify-start gap-1.5"
-              >
-                <CopyPlus className="h-3.5 w-3.5" /> Duplicate
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setDeleteOpen(true)}
-                className="justify-start gap-1.5 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-950/30"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </Button>
-            </div>
-          </SidebarCard>
         </aside>
       </div>
 
@@ -567,6 +575,93 @@ function KV({
     <div className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1 py-0.5">
       <dt className="si-caption text-muted-foreground">{label}</dt>
       <dd className="si-caption text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+// ── Editor status bar ────────────────────────────────────────────────────────
+
+/**
+ * Bottom-of-editor status strip (#404).
+ *
+ * Left: the first lint error's `message`, clickable to jump the caret to its
+ * line (consumes the `?line=N` route + page-level `jumpToLine` plumbing).
+ * Warnings are summarised (count only) since their messages are typically
+ * less critical. When the lint is clean, shows a neutral "Clean" tag.
+ *
+ * Right: file stats (lines / bytes / language). Byte count via `Blob` to get
+ * a UTF-8-accurate size (string length would lie about non-ASCII content,
+ * harmless for BeanShell but cheap to do right).
+ */
+function EditorStatusBar({
+  script,
+  issues,
+  errorCount,
+  onJumpToLine,
+}: {
+  script: string;
+  issues: ReadonlyArray<Issue>;
+  errorCount: number;
+  onJumpToLine: (line: number) => void;
+}) {
+  const firstError = issues.find((i) => i.severity === "error");
+  const warningCount = issues.length - errorCount;
+  const lineCount = script === "" ? 0 : script.split("\n").length;
+  const byteSize = new Blob([script]).size;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-card px-3 py-1.5">
+      <div className="min-w-0 flex items-center gap-3">
+        {firstError ? (
+          <button
+            type="button"
+            onClick={() =>
+              firstError.location?.line
+                ? onJumpToLine(firstError.location.line)
+                : undefined
+            }
+            disabled={!firstError.location?.line}
+            className="si-caption inline-flex min-w-0 items-center gap-1.5 truncate text-rose-600 transition-colors hover:text-rose-700 disabled:cursor-default disabled:hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300"
+            title={
+              firstError.location?.line
+                ? `Jump to line ${firstError.location.line}`
+                : undefined
+            }
+          >
+            <span aria-hidden>×</span>
+            <span className="truncate">{firstError.message}</span>
+            {firstError.location?.line ? (
+              <span className="font-mono text-rose-500/70 dark:text-rose-400/70">
+                · line {firstError.location.line}
+              </span>
+            ) : null}
+          </button>
+        ) : errorCount === 0 && warningCount === 0 ? (
+          <span className="si-caption inline-flex items-center gap-1.5 text-muted-foreground">
+            <span aria-hidden className="text-emerald-600 dark:text-emerald-400">
+              ✓
+            </span>
+            Clean
+          </span>
+        ) : (
+          <span className="si-caption text-muted-foreground">
+            {errorCount} error{errorCount === 1 ? "" : "s"}
+          </span>
+        )}
+        {errorCount > 1 ? (
+          <span className="si-caption text-muted-foreground/70">
+            +{errorCount - 1} more
+          </span>
+        ) : null}
+        {warningCount > 0 ? (
+          <span className="si-caption text-amber-600 dark:text-amber-400">
+            {warningCount} warning{warningCount === 1 ? "" : "s"}
+          </span>
+        ) : null}
+      </div>
+      <span className="si-caption font-mono text-muted-foreground/70">
+        {lineCount} {lineCount === 1 ? "line" : "lines"} · {byteSize} B · BeanShell
+      </span>
     </div>
   );
 }

@@ -28,10 +28,18 @@ import { RuleDetailV3 } from "./_components/rule-detail-v3";
  */
 export default async function RuleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ line?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const lineParam = sp.line ? Number.parseInt(sp.line, 10) : undefined;
+  const initialCaretLine =
+    lineParam !== undefined && Number.isFinite(lineParam) && lineParam > 0
+      ? lineParam
+      : undefined;
 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
@@ -138,6 +146,7 @@ export default async function RuleDetailPage({
       attachments={attachments}
       usagesAvailable={usagesAvailable}
       tenantRuleNames={tenantRuleNames}
+      initialCaretLine={initialCaretLine}
     />
   );
 }
