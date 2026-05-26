@@ -2,12 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import {
-  CopyPlus,
-  EyeOff,
-  FileCode2,
-  Trash2,
-} from "lucide-react";
+import { CopyPlus, EyeOff, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,9 +12,9 @@ import {
   type SourceAnalysis,
 } from "@simplified-identity/rules";
 
+import { CodeViewer } from "../../../../_components/code-viewer";
 import { DeleteRuleDialog } from "../../_components/delete-rule-dialog";
 import { DuplicateRuleDialog } from "../../_components/duplicate-rule-dialog";
-import { highlightBeanShell } from "../../_components/beanshell-highlight";
 import {
   RuleIssuesBanner,
   issuesSummary,
@@ -161,7 +156,7 @@ export function RuleOverviewClient({
     const lines = script.split("\n");
     const head = lines.slice(0, PREVIEW_LINES).join("\n");
     return {
-      html: highlightBeanShell(head),
+      head,
       truncated: lines.length > PREVIEW_LINES,
     };
   }, [script]);
@@ -275,37 +270,22 @@ export function RuleOverviewClient({
 
       {script && sourcePreview ? (
         <OverviewSection title="Source preview">
-          <div className="overflow-hidden rounded-md border">
-            <div className="flex items-center justify-between gap-2 border-b bg-muted/40 px-3 py-1.5">
-              <span className="si-micro inline-flex items-center gap-1.5 font-mono text-muted-foreground">
-                <FileCode2 className="h-3.5 w-3.5" aria-hidden />
-                rule.bsh
-                {rule.sourceCode?.version
-                  ? ` · v${rule.sourceCode.version}`
-                  : ""}
-              </span>
-              <button
-                type="button"
-                onClick={() => router.push(editHref)}
-                className="si-micro text-muted-foreground transition-colors hover:text-foreground"
-              >
-                Open in editor ›
-              </button>
-            </div>
-            <pre
-              className="overflow-x-auto bg-neutral-900 p-3 font-mono text-[11px] leading-relaxed text-neutral-200"
-              dangerouslySetInnerHTML={{ __html: sourcePreview.html }}
-            />
-            {sourcePreview.truncated ? (
-              <button
-                type="button"
-                onClick={() => router.push(editHref)}
-                className="si-micro block w-full border-t bg-muted/30 px-3 py-1.5 text-center text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
-              >
-                Open in editor to see full source ›
-              </button>
-            ) : null}
-          </div>
+          <CodeViewer
+            value={sourcePreview.head}
+            language="beanshell"
+            filename={`rule.bsh${
+              rule.sourceCode?.version ? ` · v${rule.sourceCode.version}` : ""
+            }`}
+          />
+          {sourcePreview.truncated ? (
+            <button
+              type="button"
+              onClick={() => router.push(editHref)}
+              className="si-micro mt-1.5 block w-full rounded border bg-muted/30 px-3 py-1.5 text-center text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            >
+              Open in editor to see full source ›
+            </button>
+          ) : null}
         </OverviewSection>
       ) : null}
 
