@@ -204,12 +204,13 @@ export function RuleCodeEditor({
       value={value}
       className={cn(hasErrors && "border-rose-500/70")}
     >
-      {/* Body: sticky-left gutter + pre/textarea overlay */}
-      <div className="flex-1 min-h-0 overflow-auto bg-neutral-900 font-mono text-[11px] leading-relaxed text-neutral-200">
+      {/* Body: sticky-left gutter + pre/textarea overlay. Tokyo Night
+          palette (#421) — matches CodeViewer's surface and gutter tone. */}
+      <div className="flex-1 min-h-0 overflow-auto bg-[#0d1117] font-mono text-[11px] leading-relaxed text-[#c0caf5]">
         <div className="flex min-h-[12rem]">
           {/* Line-number gutter — sticky so it survives horizontal scroll */}
           <div
-            className="sticky left-0 z-10 shrink-0 select-none bg-neutral-900 py-3 pr-2 pl-3 text-right text-neutral-600"
+            className="sticky left-0 z-10 shrink-0 select-none bg-[#0d1117] py-3 pr-2 pl-3 text-right text-[#3b4261]"
             aria-hidden
           >
             {lines.map((_, i) => (
@@ -221,7 +222,7 @@ export function RuleCodeEditor({
           <div className="relative flex-1 py-3 pr-3" style={{ minWidth: "max-content" }}>
             <pre
               aria-hidden
-              className="m-0 whitespace-pre text-neutral-200 pointer-events-none"
+              className="m-0 whitespace-pre text-[#c0caf5] pointer-events-none"
               dangerouslySetInnerHTML={{ __html: html }}
             />
             <textarea
@@ -234,7 +235,7 @@ export function RuleCodeEditor({
               autoCorrect="off"
               autoCapitalize="off"
               aria-label={ariaLabel}
-              className="absolute inset-0 m-0 resize-none overflow-hidden whitespace-pre border-0 bg-transparent py-3 pr-3 text-transparent caret-neutral-100 outline-none focus:ring-0"
+              className="absolute inset-0 m-0 resize-none overflow-hidden whitespace-pre border-0 bg-transparent py-3 pr-3 text-transparent caret-[#c0caf5] outline-none focus:ring-0"
             />
           </div>
         </div>

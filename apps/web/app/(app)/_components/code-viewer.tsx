@@ -136,10 +136,12 @@ export function CodeViewer({
       value={value}
       className={className}
     >
-      {/* Body: gutter + highlighted source */}
+      {/* Body: gutter + highlighted source. Tokyo Night palette (#421) —
+          bg matches CodeFrame's outer shade, foreground gets a subtle
+          blue cast to match the keyword/type accents. */}
       <div
         className={cn(
-          "flex-1 min-h-0 overflow-auto bg-neutral-900 font-mono text-[11px] leading-relaxed text-neutral-200",
+          "flex-1 min-h-0 overflow-auto bg-[#0d1117] font-mono text-[11px] leading-relaxed text-[#c0caf5]",
         )}
         style={maxBodyHeight ? { maxHeight: maxBodyHeight } : undefined}
       >
@@ -148,7 +150,7 @@ export function CodeViewer({
             {highlightedLines.map((lineHtml, idx) => (
               <tr key={idx}>
                 <td
-                  className="select-none whitespace-nowrap pr-3 pl-3 text-right align-top text-neutral-600"
+                  className="select-none whitespace-nowrap pr-3 pl-3 text-right align-top text-[#3b4261]"
                   aria-hidden
                 >
                   {idx + 1}
