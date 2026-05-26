@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ChevronLeft,
+  Clock,
   Code2,
   CopyPlus,
   FileText,
@@ -17,12 +18,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { Drawer, DrawerHeader } from "@/components/ui/drawer";
+import { cn } from "@/lib/utils";
 import {
   analyzeSource,
   getRuleCatalogEntry,
   ruleGroupFor,
   runSourceLint,
   type Issue,
+  type RuleLifecycle,
   type SourceAnalysis,
 } from "@simplified-identity/rules";
 
@@ -410,10 +413,17 @@ export function RuleDetailV3({
             />
           </SidebarCard>
 
-          <SidebarCard title="When it fires">
-            <p className="si-caption text-muted-foreground/70">
-              Lifecycle visualization lands in #406.
-            </p>
+          <SidebarCard
+            title="When it fires"
+            icon={<Clock className="h-3 w-3" />}
+          >
+            {catalog.lifecycle ? (
+              <WhenItFires lifecycle={catalog.lifecycle} />
+            ) : (
+              <p className="si-caption text-muted-foreground/70">
+                Lifecycle data unknown for this rule type.
+              </p>
+            )}
           </SidebarCard>
 
           <SidebarCard title="Signature" icon={<Code2 className="h-3 w-3" />}>
@@ -596,6 +606,69 @@ function KV({
     <div className="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1 py-0.5">
       <dt className="si-caption text-muted-foreground">{label}</dt>
       <dd className="si-caption text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+// ── When it fires (lifecycle viz) ────────────────────────────────────────────
+
+/**
+ * 3-step vertical lifecycle visualization (#406).
+ *
+ * The middle step (`steps[1]`) is always the rule itself and is highlighted
+ * blue. The other two steps frame the operation context (before/after). Below
+ * the steps, a stage banner (`BEFORE` / `DURING` / `AFTER`) plus a paragraph
+ * describing when the rule fires and what it's for. Lifecycle data is per-
+ * `ConnectorRuleType` in `packages/rules/src/catalog.ts`.
+ */
+function WhenItFires({ lifecycle }: { lifecycle: RuleLifecycle }) {
+  return (
+    <div className="space-y-3">
+      <ol className="space-y-3">
+        {lifecycle.steps.map((step, i) => {
+          const isActive = i === 1;
+          return (
+            <li key={i} className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className={cn(
+                  "mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full si-micro font-semibold",
+                  isActive
+                    ? "bg-blue-500/15 text-blue-700 ring-1 ring-blue-500/40 dark:bg-blue-500/20 dark:text-blue-300"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {i + 1}
+              </span>
+              <div className="min-w-0">
+                <div
+                  className={cn(
+                    "si-caption font-medium",
+                    isActive
+                      ? "text-blue-700 dark:text-blue-300"
+                      : "text-foreground",
+                  )}
+                >
+                  {step.label}
+                </div>
+                <div className="si-caption text-muted-foreground">
+                  {step.sub}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="rounded-md border border-blue-200 bg-blue-50/60 px-3 py-2 dark:border-blue-900/40 dark:bg-blue-950/20">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <span className="inline-flex items-center rounded bg-blue-500/15 px-1.5 py-0.5 si-micro font-semibold uppercase tracking-wider text-blue-700 dark:bg-blue-500/20 dark:text-blue-300">
+            {lifecycle.stage}
+          </span>
+          <p className="si-caption text-muted-foreground">
+            {lifecycle.stageDescription}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

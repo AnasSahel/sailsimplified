@@ -12,6 +12,30 @@
 import { ruleGroupFor, type RuleGroupSlug } from "./groups.ts";
 import type { ConnectorRuleType } from "./types";
 
+export type LifecycleStage = "BEFORE" | "DURING" | "AFTER";
+
+export type LifecycleStep = {
+  /** Short title for the step (e.g. "Raw row read", "This rule runs here"). */
+  label: string;
+  /** One-line sub-description shown below the label. */
+  sub: string;
+};
+
+/**
+ * Lifecycle data for the `WHEN IT FIRES` card (#406 / epic #401).
+ *
+ * Each rule type maps to a 3-step description of the broader operation the
+ * rule participates in. The middle step (`steps[1]`) is always the rule
+ * itself — that's what the UI highlights. `stage` summarises the rule's
+ * position (BEFORE / DURING / AFTER) and `stageDescription` is a one-paragraph
+ * plain-English explanation.
+ */
+export type RuleLifecycle = {
+  stage: LifecycleStage;
+  stageDescription: string;
+  steps: readonly [LifecycleStep, LifecycleStep, LifecycleStep];
+};
+
 export type RuleCatalogEntry = {
   type: string;
   /** Human label (defaults to the raw type when uncatalogued). */
@@ -28,6 +52,11 @@ export type RuleCatalogEntry = {
   description: string;
   /** Conceptual group slug (derived from `ruleGroupFor`). */
   group: RuleGroupSlug;
+  /**
+   * Lifecycle metadata for the `WHEN IT FIRES` card. Absent for
+   * uncatalogued types — the UI renders a graceful fallback.
+   */
+  lifecycle?: RuleLifecycle;
 };
 
 /**
@@ -114,6 +143,163 @@ const DISPLAY_LABELS: Record<ConnectorRuleType, string> = {
   WebServiceAfterOperationRule: "After Operation Rule",
 };
 
+// ── Lifecycle templates ──────────────────────────────────────────────────────
+//
+// Rule types group naturally into a handful of lifecycle shapes (aggregation
+// build, provisioning before / after, web service before / after, …). Each
+// template is reused across the rule types that share the same shape, keyed
+// in LIFECYCLES below. Authoring is concise: one paragraph + three steps per
+// shape, not per type.
+
+const AGGREGATION_BUILD: RuleLifecycle = {
+  stage: "DURING",
+  stageDescription:
+    "Runs once per resource object during aggregation. Normalise attributes, derive identities, drop garbage rows — anything between raw read and ingestion.",
+  steps: [
+    { label: "Raw row read", sub: "Connector pulls one record from the source" },
+    { label: "This rule runs here", sub: "During source aggregation" },
+    { label: "Account / group built", sub: "Resource object passed to ISC" },
+  ],
+};
+
+const PROV_BEFORE: RuleLifecycle = {
+  stage: "BEFORE",
+  stageDescription:
+    "Runs before the connector applies a provisioning change. Inspect or transform the outgoing request — add attributes, remap values, log context.",
+  steps: [
+    {
+      label: "Provisioning request",
+      sub: "ISC issues the change to the connector",
+    },
+    {
+      label: "This rule runs here",
+      sub: "Before the connector sends to the target",
+    },
+    {
+      label: "Vendor receives request",
+      sub: "Modified request applied on the source",
+    },
+  ],
+};
+
+const PROV_AFTER: RuleLifecycle = {
+  stage: "AFTER",
+  stageDescription:
+    "Runs after the connector applies a provisioning change. Inspect the result, log, or trigger downstream actions before ISC commits the new state.",
+  steps: [
+    {
+      label: "Vendor applies change",
+      sub: "Source system processes the request",
+    },
+    {
+      label: "This rule runs here",
+      sub: "After the vendor responds, before ISC commits",
+    },
+    {
+      label: "Result returned to ISC",
+      sub: "Account / group state synced",
+    },
+  ],
+};
+
+const PROV_OPERATION: RuleLifecycle = {
+  stage: "DURING",
+  stageDescription:
+    "Implements or customises a provisioning operation for this connector family. Runs as part of the connector's provisioning path on every operation.",
+  steps: [
+    { label: "ISC issues request", sub: "Provisioning operation begins" },
+    { label: "This rule runs here", sub: "Connector executes the operation" },
+    { label: "Operation complete", sub: "Result returned to ISC" },
+  ],
+};
+
+const WS_BEFORE: RuleLifecycle = {
+  stage: "BEFORE",
+  stageDescription:
+    "Runs before the Web Services connector issues an HTTP request. Shape the URL, headers, or body before it leaves the VA.",
+  steps: [
+    { label: "Request assembled", sub: "Endpoint and body built from config" },
+    { label: "This rule runs here", sub: "Just before the HTTP call" },
+    { label: "Vendor API called", sub: "Outbound request sent" },
+  ],
+};
+
+const WS_AFTER: RuleLifecycle = {
+  stage: "AFTER",
+  stageDescription:
+    "Runs after the Web Services connector receives a response. Parse, transform, or filter the vendor payload before ISC ingests it.",
+  steps: [
+    { label: "Vendor responds", sub: "HTTP response received" },
+    {
+      label: "This rule runs here",
+      sub: "After the response, before ISC parses it",
+    },
+    {
+      label: "ISC processes response",
+      sub: "Parsed account / entitlement data",
+    },
+  ],
+};
+
+const ENTITLEMENT_BUILD: RuleLifecycle = {
+  stage: "DURING",
+  stageDescription:
+    "Runs during entitlement aggregation. Shape how source permissions or group attributes are read into ISC entitlements.",
+  steps: [
+    {
+      label: "Raw permission read",
+      sub: "Connector reads the source permission",
+    },
+    { label: "This rule runs here", sub: "During entitlement aggregation" },
+    { label: "Entitlement built", sub: "Permission/group surfaced to ISC" },
+  ],
+};
+
+const MANAGER_RESOLVE: RuleLifecycle = {
+  stage: "DURING",
+  stageDescription:
+    "Resolves manager relationships during correlation. Runs as ISC links HR records to identity managers.",
+  steps: [
+    { label: "HR record read", sub: "Account aggregated from the source" },
+    { label: "This rule runs here", sub: "During manager resolution" },
+    { label: "Manager linked", sub: "Identity relationship saved" },
+  ],
+};
+
+/**
+ * Per-type lifecycle assignment. Uncatalogued types fall through to
+ * `undefined`, and the UI renders a graceful "lifecycle unknown" fallback.
+ */
+const LIFECYCLES: Partial<Record<ConnectorRuleType, RuleLifecycle>> = {
+  BuildMap: AGGREGATION_BUILD,
+  JDBCBuildMap: AGGREGATION_BUILD,
+  PeopleSoftHRMSBuildMap: AGGREGATION_BUILD,
+  SAPBuildMap: AGGREGATION_BUILD,
+  ResourceObjectCustomization: AGGREGATION_BUILD,
+
+  ConnectorBeforeCreate: PROV_BEFORE,
+  ConnectorBeforeModify: PROV_BEFORE,
+  ConnectorBeforeDelete: PROV_BEFORE,
+
+  ConnectorAfterCreate: PROV_AFTER,
+  ConnectorAfterModify: PROV_AFTER,
+  ConnectorAfterDelete: PROV_AFTER,
+
+  JDBCOperationProvisioning: PROV_OPERATION,
+  JDBCProvision: PROV_OPERATION,
+  PeopleSoftHRMSOperationProvisioning: PROV_OPERATION,
+  PeopleSoftHRMSProvision: PROV_OPERATION,
+  SapHrOperationProvisioning: PROV_OPERATION,
+  SapHrProvision: PROV_OPERATION,
+  SuccessFactorsOperationProvisioning: PROV_OPERATION,
+
+  WebServiceBeforeOperationRule: WS_BEFORE,
+  WebServiceAfterOperationRule: WS_AFTER,
+
+  RACFPermissionCustomization: ENTITLEMENT_BUILD,
+  SapHrManagerRule: MANAGER_RESOLVE,
+};
+
 /**
  * Best-effort prose split of an uncatalogued PascalCase type — inserts
  * spaces at lower→upper and acronym→Word boundaries so a future ISC type
@@ -134,6 +320,7 @@ export function humanizeRuleType(type: string): string {
 export function getRuleCatalogEntry(type: string): RuleCatalogEntry {
   const description = (DESCRIPTIONS as Record<string, string>)[type];
   const displayLabel = (DISPLAY_LABELS as Record<string, string>)[type];
+  const lifecycle = (LIFECYCLES as Record<string, RuleLifecycle>)[type];
   return {
     type,
     label: type,
@@ -142,6 +329,7 @@ export function getRuleCatalogEntry(type: string): RuleCatalogEntry {
       description ??
       "Connector rule executed in the SailPoint cloud, attached to a source.",
     group: ruleGroupFor(type).slug,
+    lifecycle,
   };
 }
 
