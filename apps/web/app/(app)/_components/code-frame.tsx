@@ -144,12 +144,14 @@ export function CodeFrame({
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 shadow-sm",
+        // Tokyo Night-inspired surface (#421). Outer wrapper holds the body
+        // shade; header and footer use a slightly lighter tone.
+        "flex min-h-0 flex-col overflow-hidden rounded-lg border border-[#21262d] bg-[#0d1117] shadow-sm",
         className,
       )}
     >
       {/* Header: traffic lights · filename · language badge · copy */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-3 py-2">
+      <div className="flex shrink-0 items-center gap-3 border-b border-[#21262d] bg-[#161b22] px-3 py-2">
         <div className="flex items-center gap-1.5" aria-hidden>
           <span className="block h-3 w-3 rounded-full bg-[#ff5f57]" />
           <span className="block h-3 w-3 rounded-full bg-[#febc2e]" />
@@ -194,7 +196,7 @@ export function CodeFrame({
 
       {/* Footer: status · meta */}
       {showFooter ? (
-        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-neutral-800 bg-neutral-900 px-3 py-1.5 text-[11px]">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#21262d] bg-[#161b22] px-3 py-1.5 text-[11px]">
           <div className="min-w-0 truncate">{footerLeft}</div>
           {showMeta && (lineCount !== undefined || byteLabel !== undefined) ? (
             <div className="whitespace-nowrap text-neutral-500">

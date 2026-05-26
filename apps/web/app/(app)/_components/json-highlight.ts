@@ -3,8 +3,9 @@
  * (#414) and the legacy `JsonView` re-export can import it without forming
  * a circular dependency.
  *
- * Tuned for a dark `bg-neutral-900` surface — all callers render on a
- * dark panel.
+ * Palette: Tokyo Night-inspired (#421), aligned with `highlightBeanShell`.
+ * Keys → blue, strings → green, numbers/booleans → coral, null → muted.
+ * Tuned for the dark `#0d1117` body surface set by `CodeFrame`.
  */
 
 function escapeHtml(s: string): string {
@@ -27,19 +28,19 @@ export function highlightJson(json: string): string {
     TOKEN_RE,
     (_match, keyStr, keyColon, strVal, boolVal, nullVal, numVal) => {
       if (keyStr && keyColon) {
-        return `<span class="text-sky-300">${keyStr}</span>${keyColon}`;
+        return `<span style="color:#7aa2f7">${keyStr}</span>${keyColon}`;
       }
       if (strVal) {
-        return `<span class="text-emerald-300">${strVal}</span>`;
+        return `<span style="color:#9ece6a">${strVal}</span>`;
       }
       if (boolVal) {
-        return `<span class="text-amber-300">${boolVal}</span>`;
+        return `<span style="color:#ff9e64">${boolVal}</span>`;
       }
       if (nullVal) {
-        return `<span class="text-neutral-500">${nullVal}</span>`;
+        return `<span style="color:#6b7280">${nullVal}</span>`;
       }
       if (numVal) {
-        return `<span class="text-rose-300">${numVal}</span>`;
+        return `<span style="color:#ff9e64">${numVal}</span>`;
       }
       return "";
     },
