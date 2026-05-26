@@ -1,11 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Check, Copy } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { highlightJson } from "./json-highlight";
 import { escapeHtml, highlightBeanShell } from "../sailpoint/rules/_components/beanshell-highlight";
+import {
+  CodeFrame,
+  formatByteSize,
+  type CodeFrameLanguage,
+  type CodeFrameStatus,
+} from "./code-frame";
 
 /**
  * Shared read-only code/JSON viewer (#414).
@@ -17,20 +22,16 @@ import { escapeHtml, highlightBeanShell } from "../sailpoint/rules/_components/b
  *  - line-numbered, syntax-highlighted source body
  *  - optional footer: status check on the left, `N lines · M B · Language` on the right
  *
- * Replaces the ad-hoc `JsonPanel` / `RuleCodePanel` / inline `<pre className="bg-neutral-900">`
- * patterns that drifted across the app. Wraps the existing
- * `highlightJson` / `highlightBeanShell` helpers — no new highlighter engine.
+ * Chrome is provided by `CodeFrame` (#419) so editable surfaces share the
+ * same visual shell. The `splitHighlightedByLines` helper and syntax
+ * highlighting live here — read-only concerns not needed by editable surfaces.
  *
- * Editable surfaces (`RuleCodeEditor`, transform CodeMirror) are out of scope
- * and stay as-is for now.
+ * Editable surfaces (`RuleCodeEditor`, `RawJsonEditor`) wrap their own
+ * bodies in `CodeFrame` directly.
  */
 
-export type CodeViewerLanguage = "json" | "beanshell" | "plain";
-
-export type CodeViewerStatus = {
-  ok: boolean;
-  message: string;
-};
+export type CodeViewerLanguage = CodeFrameLanguage;
+export type CodeViewerStatus = CodeFrameStatus;
 
 export type CodeViewerProps = {
   value: string;
@@ -44,18 +45,6 @@ export type CodeViewerProps = {
   /** Maximum body height (CSS value). Defaults to no max. */
   maxBodyHeight?: string;
   className?: string;
-};
-
-const LANGUAGE_LABEL: Record<CodeViewerLanguage, string> = {
-  json: "JSON",
-  beanshell: "BeanShell",
-  plain: "Plain text",
-};
-
-const LANGUAGE_BADGE_CLASS: Record<CodeViewerLanguage, string> = {
-  json: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-  beanshell: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-  plain: "bg-neutral-700/40 text-neutral-300 border-neutral-600/50",
 };
 
 function highlightFor(language: CodeViewerLanguage, value: string): string {
@@ -92,7 +81,6 @@ function splitHighlightedByLines(html: string): string[] {
     if (ch === "<") {
       const end = html.indexOf(">", i);
       if (end === -1) {
-        // Unterminated tag — bail and dump the rest as-is.
         current += html.slice(i);
         break;
       }
@@ -105,7 +93,6 @@ function splitHighlightedByLines(html: string): string[] {
       current += tag;
       i = end + 1;
     } else if (ch === "\n") {
-      // Close every open span before the newline, push the line, reopen on next.
       current += openTags.map(() => "</span>").join("");
       lines.push(current);
       current = openTags.join("");
@@ -117,54 +104,6 @@ function splitHighlightedByLines(html: string): string[] {
   }
   lines.push(current);
   return lines;
-}
-
-function formatByteSize(value: string): string {
-  const bytes = new TextEncoder().encode(value).length;
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} kB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function useCopyToClipboard(value: string) {
-  const [copied, setCopied] = React.useState(false);
-
-  function copy() {
-    function markCopied() {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    }
-
-    function legacyFallback(): boolean {
-      // Last-resort for browsers without the Clipboard API or insecure contexts.
-      const ta = document.createElement("textarea");
-      ta.value = value;
-      ta.style.position = "fixed";
-      ta.style.top = "-1000px";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      let ok = false;
-      try {
-        ok = document.execCommand("copy");
-      } catch {
-        ok = false;
-      }
-      document.body.removeChild(ta);
-      return ok;
-    }
-
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
-      if (legacyFallback()) markCopied();
-      return;
-    }
-    navigator.clipboard.writeText(value).then(markCopied, () => {
-      if (legacyFallback()) markCopied();
-    });
-  }
-
-  return { copied, copy };
 }
 
 export function CodeViewer({
@@ -184,61 +123,24 @@ export function CodeViewer({
 
   const lineCount = highlightedLines.length;
   const byteLabel = React.useMemo(() => formatByteSize(value), [value]);
-  const { copied, copy } = useCopyToClipboard(value);
-
-  const showFooter = Boolean(status) || showMeta;
 
   return (
-    <div
-      className={cn(
-        "overflow-hidden rounded-lg border border-neutral-800 bg-neutral-950 shadow-sm",
-        className,
-      )}
+    <CodeFrame
+      language={language}
+      filename={filename}
+      status={status}
+      showCopy={showCopy}
+      showMeta={showMeta}
+      lineCount={lineCount}
+      byteLabel={byteLabel}
+      value={value}
+      className={className}
     >
-      {/* Header: traffic lights · filename · language badge · copy */}
-      <div className="flex items-center gap-3 border-b border-neutral-800 bg-neutral-900 px-3 py-2">
-        <div className="flex items-center gap-1.5" aria-hidden>
-          <span className="block h-3 w-3 rounded-full bg-[#ff5f57]" />
-          <span className="block h-3 w-3 rounded-full bg-[#febc2e]" />
-          <span className="block h-3 w-3 rounded-full bg-[#28c840]" />
-        </div>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          {filename ? (
-            <span className="truncate font-mono text-[12px] text-neutral-300">
-              {filename}
-            </span>
-          ) : null}
-          <span
-            className={cn(
-              "inline-flex h-5 items-center rounded border px-1.5 font-mono text-[10px] font-medium",
-              LANGUAGE_BADGE_CLASS[language],
-            )}
-          >
-            {LANGUAGE_LABEL[language]}
-          </span>
-        </div>
-        {showCopy ? (
-          <button
-            type="button"
-            onClick={copy}
-            className="inline-flex h-7 items-center gap-1 rounded border border-neutral-700 bg-neutral-800 px-2 text-[11px] text-neutral-300 transition-colors hover:bg-neutral-700 hover:text-neutral-100"
-          >
-            {copied ? (
-              <>
-                <Check className="h-3 w-3" /> Copied
-              </>
-            ) : (
-              <>
-                <Copy className="h-3 w-3" /> Copy
-              </>
-            )}
-          </button>
-        ) : null}
-      </div>
-
       {/* Body: gutter + highlighted source */}
       <div
-        className="overflow-auto bg-neutral-900 font-mono text-[11px] leading-relaxed text-neutral-200"
+        className={cn(
+          "flex-1 min-h-0 overflow-auto bg-neutral-900 font-mono text-[11px] leading-relaxed text-neutral-200",
+        )}
         style={maxBodyHeight ? { maxHeight: maxBodyHeight } : undefined}
       >
         <table className="min-w-full border-separate border-spacing-0">
@@ -253,38 +155,13 @@ export function CodeViewer({
                 </td>
                 <td
                   className="w-full whitespace-pre pr-3 align-top"
-                  dangerouslySetInnerHTML={{ __html: lineHtml || " " }}
+                  dangerouslySetInnerHTML={{ __html: lineHtml || " " }}
                 />
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      {/* Footer: status · meta */}
-      {showFooter ? (
-        <div className="flex items-center justify-between gap-3 border-t border-neutral-800 bg-neutral-900 px-3 py-1.5 text-[11px]">
-          <div className="min-w-0 truncate">
-            {status ? (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 font-medium",
-                  status.ok ? "text-emerald-400" : "text-rose-400",
-                )}
-              >
-                <span aria-hidden>{status.ok ? "✓" : "✗"}</span>
-                <span className="truncate">{status.message}</span>
-              </span>
-            ) : null}
-          </div>
-          {showMeta ? (
-            <div className="whitespace-nowrap text-neutral-500">
-              {lineCount} {lineCount === 1 ? "line" : "lines"} · {byteLabel} ·{" "}
-              {LANGUAGE_LABEL[language]}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
+    </CodeFrame>
   );
 }

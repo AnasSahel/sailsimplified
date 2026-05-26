@@ -26,7 +26,6 @@ import {
   humanizeAttachmentPath,
   ruleGroupFor,
   runSourceLint,
-  type Issue,
   type RuleLifecycle,
   type SourceAnalysis,
 } from "@simplified-identity/rules";
@@ -383,22 +382,18 @@ export function RuleDetailV3({
 
       {/* ── Two-column body ─────────────────────────────────────────────── */}
       <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_24rem] gap-4 overflow-hidden p-4">
-        {/* Left — editor */}
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
-          <RuleCodeEditor
-            key={editorKey}
-            value={script}
-            onChange={setScript}
-            hasErrors={lintResult.errorCount > 0}
-            initialCaretLine={caretLine}
-          />
-          <EditorStatusBar
-            script={script}
-            issues={lintResult.issues}
-            errorCount={lintResult.errorCount}
-            onJumpToLine={jumpToLine}
-          />
-        </section>
+        {/* Left — editor (CodeFrame chrome applied by RuleCodeEditor #419) */}
+        <RuleCodeEditor
+          key={editorKey}
+          value={script}
+          onChange={setScript}
+          hasErrors={lintResult.errorCount > 0}
+          initialCaretLine={caretLine}
+          filename={`${rule.name}.bsh`}
+          lintIssues={lintResult.issues}
+          lintErrorCount={lintResult.errorCount}
+          onJumpToLine={jumpToLine}
+        />
 
         {/* Right — sidebar cards. PR 1 inlines existing data; #405-#409 will
             split into proper individual cards with their own polish. */}
@@ -718,89 +713,3 @@ function WhenItFires({ lifecycle }: { lifecycle: RuleLifecycle }) {
   );
 }
 
-// ── Editor status bar ────────────────────────────────────────────────────────
-
-/**
- * Bottom-of-editor status strip (#404).
- *
- * Left: the first lint error's `message`, clickable to jump the caret to its
- * line (consumes the `?line=N` route + page-level `jumpToLine` plumbing).
- * Warnings are summarised (count only) since their messages are typically
- * less critical. When the lint is clean, shows a neutral "Clean" tag.
- *
- * Right: file stats (lines / bytes / language). Byte count via `Blob` to get
- * a UTF-8-accurate size (string length would lie about non-ASCII content,
- * harmless for BeanShell but cheap to do right).
- */
-function EditorStatusBar({
-  script,
-  issues,
-  errorCount,
-  onJumpToLine,
-}: {
-  script: string;
-  issues: ReadonlyArray<Issue>;
-  errorCount: number;
-  onJumpToLine: (line: number) => void;
-}) {
-  const firstError = issues.find((i) => i.severity === "error");
-  const warningCount = issues.length - errorCount;
-  const lineCount = script === "" ? 0 : script.split("\n").length;
-  const byteSize = new Blob([script]).size;
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-card px-3 py-1.5">
-      <div className="min-w-0 flex items-center gap-3">
-        {firstError ? (
-          <button
-            type="button"
-            onClick={() =>
-              firstError.location?.line
-                ? onJumpToLine(firstError.location.line)
-                : undefined
-            }
-            disabled={!firstError.location?.line}
-            className="si-caption inline-flex min-w-0 items-center gap-1.5 truncate text-rose-600 transition-colors hover:text-rose-700 disabled:cursor-default disabled:hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300"
-            title={
-              firstError.location?.line
-                ? `Jump to line ${firstError.location.line}`
-                : undefined
-            }
-          >
-            <span aria-hidden>×</span>
-            <span className="truncate">{firstError.message}</span>
-            {firstError.location?.line ? (
-              <span className="font-mono text-rose-500/70 dark:text-rose-400/70">
-                · line {firstError.location.line}
-              </span>
-            ) : null}
-          </button>
-        ) : errorCount === 0 && warningCount === 0 ? (
-          <span className="si-caption inline-flex items-center gap-1.5 text-muted-foreground">
-            <span aria-hidden className="text-emerald-600 dark:text-emerald-400">
-              ✓
-            </span>
-            Clean
-          </span>
-        ) : (
-          <span className="si-caption text-muted-foreground">
-            {errorCount} error{errorCount === 1 ? "" : "s"}
-          </span>
-        )}
-        {errorCount > 1 ? (
-          <span className="si-caption text-muted-foreground/70">
-            +{errorCount - 1} more
-          </span>
-        ) : null}
-        {warningCount > 0 ? (
-          <span className="si-caption text-amber-600 dark:text-amber-400">
-            {warningCount} warning{warningCount === 1 ? "" : "s"}
-          </span>
-        ) : null}
-      </div>
-      <span className="si-caption font-mono text-muted-foreground/70">
-        {lineCount} {lineCount === 1 ? "line" : "lines"} · {byteSize} B · BeanShell
-      </span>
-    </div>
-  );
-}

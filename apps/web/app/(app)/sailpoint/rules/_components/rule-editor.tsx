@@ -235,6 +235,9 @@ export function RuleEditor({
             onChange={setScript}
             hasErrors={lintResult.errorCount > 0}
             initialCaretLine={mode.kind === "edit" ? mode.initialCaretLine : undefined}
+            filename={mode.kind === "edit" ? `${mode.name}.bsh` : undefined}
+            lintIssues={lintResult.issues}
+            lintErrorCount={lintResult.errorCount}
           />
           {/*
             Findings themselves are displayed by `RuleIssuesBanner` on the page,
