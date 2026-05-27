@@ -1,4 +1,4 @@
-CREATE TABLE `account` (
+CREATE TABLE IF NOT EXISTS `account` (
 	`id` text PRIMARY KEY NOT NULL,
 	`accountId` text NOT NULL,
 	`providerId` text NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE `account` (
 	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `api_token` (
+CREATE TABLE IF NOT EXISTS `api_token` (
 	`id` text PRIMARY KEY NOT NULL,
 	`organization_id` text NOT NULL,
 	`name` text NOT NULL,
@@ -29,9 +29,9 @@ CREATE TABLE `api_token` (
 	FOREIGN KEY (`created_by_user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `idx_api_token_org` ON `api_token` (`organization_id`);--> statement-breakpoint
-CREATE UNIQUE INDEX `idx_api_token_hash` ON `api_token` (`token_hash`);--> statement-breakpoint
-CREATE TABLE `contractor` (
+CREATE INDEX IF NOT EXISTS `idx_api_token_org` ON `api_token` (`organization_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_api_token_hash` ON `api_token` (`token_hash`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `contractor` (
 	`id` text PRIMARY KEY NOT NULL,
 	`organization_id` text NOT NULL,
 	`first_name` text NOT NULL,
@@ -54,10 +54,10 @@ CREATE TABLE `contractor` (
 	FOREIGN KEY (`updated_by_user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `idx_contractor_org_deleted` ON `contractor` (`organization_id`,`deleted_at`);--> statement-breakpoint
-CREATE UNIQUE INDEX `idx_contractor_org_email_active` ON `contractor` (`organization_id`,`email`) WHERE "contractor"."deleted_at" IS NULL;--> statement-breakpoint
-CREATE INDEX `idx_contractor_org_sponsor` ON `contractor` (`organization_id`,`sponsor_user_id`);--> statement-breakpoint
-CREATE TABLE `explanation_cache` (
+CREATE INDEX IF NOT EXISTS `idx_contractor_org_deleted` ON `contractor` (`organization_id`,`deleted_at`);--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_contractor_org_email_active` ON `contractor` (`organization_id`,`email`) WHERE "contractor"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_contractor_org_sponsor` ON `contractor` (`organization_id`,`sponsor_user_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `explanation_cache` (
 	`scope_key` text NOT NULL,
 	`source_hash` text NOT NULL,
 	`explanation` text NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE `explanation_cache` (
 	PRIMARY KEY(`scope_key`, `source_hash`)
 );
 --> statement-breakpoint
-CREATE TABLE `identity_attribute_drift_snapshot` (
+CREATE TABLE IF NOT EXISTS `identity_attribute_drift_snapshot` (
 	`attribute_name` text PRIMARY KEY NOT NULL,
 	`populated_count` integer NOT NULL,
 	`total_count` integer NOT NULL,
@@ -76,8 +76,8 @@ CREATE TABLE `identity_attribute_drift_snapshot` (
 	`captured_at` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `idx_drift_snapshot_tier` ON `identity_attribute_drift_snapshot` (`tier`);--> statement-breakpoint
-CREATE TABLE `invitation` (
+CREATE INDEX IF NOT EXISTS `idx_drift_snapshot_tier` ON `identity_attribute_drift_snapshot` (`tier`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `invitation` (
 	`id` text PRIMARY KEY NOT NULL,
 	`organizationId` text NOT NULL,
 	`email` text NOT NULL,
@@ -89,7 +89,7 @@ CREATE TABLE `invitation` (
 	FOREIGN KEY (`inviterId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `member` (
+CREATE TABLE IF NOT EXISTS `member` (
 	`id` text PRIMARY KEY NOT NULL,
 	`organizationId` text NOT NULL,
 	`userId` text NOT NULL,
@@ -99,7 +99,7 @@ CREATE TABLE `member` (
 	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `organization` (
+CREATE TABLE IF NOT EXISTS `organization` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`slug` text NOT NULL,
@@ -108,8 +108,8 @@ CREATE TABLE `organization` (
 	`metadata` text
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `organization_slug_unique` ON `organization` (`slug`);--> statement-breakpoint
-CREATE TABLE `session` (
+CREATE UNIQUE INDEX IF NOT EXISTS `organization_slug_unique` ON `organization` (`slug`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `session` (
 	`id` text PRIMARY KEY NOT NULL,
 	`expiresAt` integer NOT NULL,
 	`token` text NOT NULL,
@@ -122,8 +122,8 @@ CREATE TABLE `session` (
 	FOREIGN KEY (`userId`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `session_token_unique` ON `session` (`token`);--> statement-breakpoint
-CREATE TABLE `source_audit_event` (
+CREATE UNIQUE INDEX IF NOT EXISTS `session_token_unique` ON `session` (`token`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `source_audit_event` (
 	`id` text PRIMARY KEY NOT NULL,
 	`source_id` text NOT NULL,
 	`source_name` text NOT NULL,
@@ -140,11 +140,11 @@ CREATE TABLE `source_audit_event` (
 	FOREIGN KEY (`actor_user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
-CREATE INDEX `idx_source_audit_source` ON `source_audit_event` (`source_id`,`occurred_at`);--> statement-breakpoint
-CREATE INDEX `idx_source_audit_action` ON `source_audit_event` (`action`);--> statement-breakpoint
-CREATE INDEX `idx_source_audit_actor` ON `source_audit_event` (`actor_user_id`);--> statement-breakpoint
-CREATE INDEX `idx_source_audit_occurred_at` ON `source_audit_event` (`occurred_at`);--> statement-breakpoint
-CREATE TABLE `source_meta` (
+CREATE INDEX IF NOT EXISTS `idx_source_audit_source` ON `source_audit_event` (`source_id`,`occurred_at`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_source_audit_action` ON `source_audit_event` (`action`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_source_audit_actor` ON `source_audit_event` (`actor_user_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_source_audit_occurred_at` ON `source_audit_event` (`occurred_at`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `source_meta` (
 	`user_id` text NOT NULL,
 	`source_id` text NOT NULL,
 	`schema_baseline_at` integer,
@@ -152,7 +152,7 @@ CREATE TABLE `source_meta` (
 	PRIMARY KEY(`user_id`, `source_id`)
 );
 --> statement-breakpoint
-CREATE TABLE `source_schema_snapshot` (
+CREATE TABLE IF NOT EXISTS `source_schema_snapshot` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
 	`source_id` text NOT NULL,
@@ -170,10 +170,10 @@ CREATE TABLE `source_schema_snapshot` (
 	`changed_at` integer
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `idx_source_schema_snapshot_uniq` ON `source_schema_snapshot` (`user_id`,`source_id`,`schema_name`,`attr_name`);--> statement-breakpoint
-CREATE INDEX `idx_source_schema_snapshot_source` ON `source_schema_snapshot` (`user_id`,`source_id`);--> statement-breakpoint
-CREATE INDEX `idx_source_schema_snapshot_tier` ON `source_schema_snapshot` (`user_id`,`source_id`,`tier`);--> statement-breakpoint
-CREATE TABLE `tenant_settings` (
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_source_schema_snapshot_uniq` ON `source_schema_snapshot` (`user_id`,`source_id`,`schema_name`,`attr_name`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_source_schema_snapshot_source` ON `source_schema_snapshot` (`user_id`,`source_id`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_source_schema_snapshot_tier` ON `source_schema_snapshot` (`user_id`,`source_id`,`tier`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `tenant_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
 	`aggregation_freshness_threshold_hours` integer,
 	`explain_notice_dismissed` integer,
@@ -182,7 +182,7 @@ CREATE TABLE `tenant_settings` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE TABLE `transform_samples` (
+CREATE TABLE IF NOT EXISTS `transform_samples` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
 	`transform_id` text NOT NULL,
@@ -191,8 +191,8 @@ CREATE TABLE `transform_samples` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE INDEX `idx_transform_samples_user_transform` ON `transform_samples` (`user_id`,`transform_id`);--> statement-breakpoint
-CREATE TABLE `transform_test_fixture` (
+CREATE INDEX IF NOT EXISTS `idx_transform_samples_user_transform` ON `transform_samples` (`user_id`,`transform_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `transform_test_fixture` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
 	`transform_id` text NOT NULL,
@@ -204,9 +204,9 @@ CREATE TABLE `transform_test_fixture` (
 	FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `idx_transform_test_fixture_uniq` ON `transform_test_fixture` (`user_id`,`transform_id`,`name`);--> statement-breakpoint
-CREATE INDEX `idx_transform_test_fixture_by_transform` ON `transform_test_fixture` (`user_id`,`transform_id`);--> statement-breakpoint
-CREATE TABLE `user` (
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_transform_test_fixture_uniq` ON `transform_test_fixture` (`user_id`,`transform_id`,`name`);--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS `idx_transform_test_fixture_by_transform` ON `transform_test_fixture` (`user_id`,`transform_id`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `user` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`email` text NOT NULL,
@@ -216,8 +216,8 @@ CREATE TABLE `user` (
 	`updatedAt` integer NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `user_email_unique` ON `user` (`email`);--> statement-breakpoint
-CREATE TABLE `verification` (
+CREATE UNIQUE INDEX IF NOT EXISTS `user_email_unique` ON `user` (`email`);--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS `verification` (
 	`id` text PRIMARY KEY NOT NULL,
 	`identifier` text NOT NULL,
 	`value` text NOT NULL,
