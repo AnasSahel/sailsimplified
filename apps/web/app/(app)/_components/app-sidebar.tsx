@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Database,
   FileCode2,
+  HardHat,
   KeyRound,
   LayoutDashboard,
   Search,
@@ -61,6 +62,7 @@ const SAILPOINT: FoldableItem = {
   children: [
     { href: "/sailpoint/sources", label: "Sources", icon: Database },
     { href: "/sailpoint/identities", label: "Identities", icon: Users },
+    { href: "/contractors", label: "Contractors", icon: HardHat },
     {
       href: "/sailpoint/identity-attributes",
       label: "Identity attributes",

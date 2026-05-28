@@ -469,6 +469,63 @@ export const sourceMeta = sqliteTable(
  * Rows are upserted on every new explanation; no explicit invalidation
  * path needed — the hash is the invalidation key.
  */
+/**
+ * Contractor registry (epic #423, phase 4).
+ *
+ * One row per contractor per organisation. Status is computed at read-time
+ * from `end_date` and `deleted_at` (no stored enum):
+ *   - active     : deleted_at IS NULL AND end_date >= today
+ *   - expired    : deleted_at IS NULL AND end_date <  today
+ *   - terminated : deleted_at IS NOT NULL
+ *
+ * `sponsor_user_id` is a FK to `user` (org member) and can be null if the
+ * sponsor was removed. `external_ref` is an opaque customer-managed key
+ * (employee ID, HRIS ID, …). `attributes` is a free-form JSON blob.
+ *
+ * Org isolation: every query MUST filter by `organization_id` which is
+ * asserted from `session.session.activeOrganizationId`.
+ */
+export const contractor = sqliteTable(
+  "contractor",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    email: text("email").notNull(),
+    startDate: text("start_date").notNull(),
+    endDate: text("end_date").notNull(),
+    sponsorUserId: text("sponsor_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    externalRef: text("external_ref"),
+    attributes: text("attributes"),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
+    createdBy: text("created_by").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    orgIdx: index("idx_contractor_org").on(table.organizationId),
+    emailUniq: uniqueIndex("idx_contractor_org_email").on(
+      table.organizationId,
+      table.email,
+    ),
+    endDateIdx: index("idx_contractor_end_date").on(
+      table.organizationId,
+      table.endDate,
+    ),
+  }),
+);
+
 export const explanationCache = sqliteTable(
   "explanation_cache",
   {
