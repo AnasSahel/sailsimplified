@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   index,
   integer,
@@ -482,5 +483,81 @@ export const explanationCache = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.scopeKey, table.sourceHash] }),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// Contractors (epic #423, phase 1 — issue #424).
+// ---------------------------------------------------------------------------
+
+export const contractor = sqliteTable(
+  "contractor",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id),
+    firstName: text("first_name").notNull(),
+    lastName: text("last_name").notNull(),
+    email: text("email").notNull(),
+    startDate: text("start_date"),
+    endDate: text("end_date"),
+    sponsorUserId: text("sponsor_user_id")
+      .notNull()
+      .references(() => user.id),
+    status: text("status", {
+      enum: ["active", "expired", "terminated"],
+    })
+      .notNull()
+      .default("active"),
+    externalRef: text("external_ref"),
+    attributes: text("attributes").notNull().default("{}"),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+    deletedAt: integer("deleted_at"),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => user.id),
+    updatedByUserId: text("updated_by_user_id")
+      .notNull()
+      .references(() => user.id),
+  },
+  (table) => ({
+    orgDeletedIdx: index("idx_contractor_org_deleted").on(
+      table.organizationId,
+      table.deletedAt,
+    ),
+    orgEmailActiveUniq: uniqueIndex("idx_contractor_org_email_active")
+      .on(table.organizationId, table.email)
+      .where(sql`${table.deletedAt} IS NULL`),
+    orgSponsorIdx: index("idx_contractor_org_sponsor").on(
+      table.organizationId,
+      table.sponsorUserId,
+    ),
+  }),
+);
+
+export const apiToken = sqliteTable(
+  "api_token",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    tokenPrefix: text("token_prefix").notNull(),
+    lastUsedAt: integer("last_used_at"),
+    createdAt: integer("created_at").notNull(),
+    createdByUserId: text("created_by_user_id")
+      .notNull()
+      .references(() => user.id),
+    revokedAt: integer("revoked_at"),
+  },
+  (table) => ({
+    orgIdx: index("idx_api_token_org").on(table.organizationId),
+    tokenHashUniq: uniqueIndex("idx_api_token_hash").on(table.tokenHash),
   }),
 );
